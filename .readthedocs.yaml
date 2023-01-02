@@ -1,0 +1,8 @@
+version: 2
+sphinx:
+   configuration: docs/conf.py
+python:
+   # Tell RTD to install the package with pip - needed to make it install sniffio dependency
+   install:
+   - method: pip
+     path: .
