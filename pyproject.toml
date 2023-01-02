@@ -36,3 +36,6 @@ classifiers = [
 [project.urls]
 repository = "https://github.com/arthur-tacca/aioresult"
 documentation = "https://aioresult.readthedocs.io/en/stable/docs.html"
+
+[project.optional-dependencies]
+docs = ["sphinxcontrib-trio"]
