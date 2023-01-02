@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "aioresult._version.__version__"}
+
+[project]
+name = "aioresult"
+dynamic = ["version"]
+description = "Capture the result of a Trio or anyio task"
+license = {file = "LICENSE"}
+authors = [{name = "Arthur Tacca"}]
+readme = "README.rst"
+requires-python = ">=3.8"
+dependencies = ["sniffio>=1.0.0"]
+
+keywords = ["async", "anyio", "trio", "result", "future", "nursery", "taskgroup"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: AnyIO",
+    "Framework :: Trio",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Boost Software License 1.0 (BSL-1.0)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: System :: Networking",
+]
+
+[project.urls]
+repository = "https://github.com/arthur-tacca/aioresult"
+documentation = "https://aioresult.readthedocs.io/en/stable/docs.html"

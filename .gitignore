@@ -1,0 +1,21 @@
+
+# PyCharm files
+.idea/
+
+# Byte-compiled files
+__pycache__/
+
+# Sphinx docs
+docs/build/
+
+# Distribution / packaging
+/dist/
+*.egg-info/
+
+# Tests / coverage
+.pytest_cache
+.coverage
+/htmlcov/
+
+# Notes to self
+_TODO.txt
