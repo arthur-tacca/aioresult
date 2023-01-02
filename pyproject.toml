@@ -12,7 +12,7 @@ description = "Capture the result of a Trio or anyio task"
 license = {file = "LICENSE"}
 authors = [{name = "Arthur Tacca"}]
 readme = "README.rst"
-requires-python = ">=3.8"
+requires-python = ">=3.7"
 dependencies = ["sniffio>=1.0.0"]
 
 keywords = ["async", "anyio", "trio", "result", "future", "nursery", "taskgroup"]
