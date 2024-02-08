@@ -12,10 +12,10 @@ those already return an object representing the task, allowing the result to be 
 
 * Documentation is on ReadTheDocs:
 
-  * Overview (this page): https://aioresult.readthedocs.io/en/1.0/overview.html
-  * Capturing a result: https://aioresult.readthedocs.io/en/1.0/result_capture.html
-  * Future objects: https://aioresult.readthedocs.io/en/1.0/future.html
-  * Utility functions for waiting: https://aioresult.readthedocs.io/en/1.0/wait.html
+  * Overview (this page): https://aioresult.readthedocs.io/en/v1.0/overview.html
+  * Capturing a result: https://aioresult.readthedocs.io/en/v1.0/result_capture.html
+  * Future objects: https://aioresult.readthedocs.io/en/v1.0/future.html
+  * Utility functions for waiting: https://aioresult.readthedocs.io/en/v1.0/wait.html
 
 * The package is on PyPI: https://pypi.org/project/aioresult/
 
