@@ -1,0 +1,94 @@
+# Copyright Arthur Tacca 2022 - 2024
+# Distributed under the Boost Software License, Version 1.0.
+# See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt
+
+from typing import Iterable, Optional
+from aioresult._aio import *
+from aioresult._src import ResultBase
+
+
+async def wait_all(results: Iterable[ResultBase]) -> None:
+    """Waits until all tasks are done.
+
+    The implementation is extremely simple: it just iterates over the parameter and calls
+    :meth:`ResultBase.wait_done()` on each in turn. (It does not matter if they finish in a
+    different order than the iteration order because :meth:`ResultBase.wait_done()` returns
+    immediately if the task is already done.)
+
+    :param results: The results to wait for.
+    """
+    for r in results:
+        await r.wait_done()
+
+
+async def wait_any(results: Iterable[ResultBase]) -> ResultBase:
+    """Waits until one of the tasks is complete, and returns that object.
+
+    Note that it is possible that, when this function returns, more than one of the tasks has
+    actually completed (i.e., :meth:`ResultBase.is_done()` could return ``True`` for more than one
+    of them).
+
+    :param results: The :class:`ResultBase` objects to wait for.
+    :return: One of the objects in ``result``.
+    :raise RuntimeError: If ``results`` is empty.
+    """
+    first_result: Optional[ResultBase] = None
+
+    async def wait_one(result: ResultBase):
+        nonlocal first_result
+        await result.wait_done()
+        if first_result is None:
+            first_result = result
+        nursery.cancel_scope.cancel()
+
+    async with open_nursery() as nursery:
+        for r in results:
+            nursery.start_soon(wait_one, r)
+
+    if first_result is None:
+        raise RuntimeError("No elements were passed to wait_any")
+
+    return first_result
+
+
+async def results_to_channel(
+    results: Iterable[ResultBase], channel: SendChannel, close_on_complete: bool = True
+) -> None:
+    """Waits for :class:`ResultBase` tasks to complete, and sends them to an async channel.
+
+    The results are waited for in parallel, so they are sent to the channel in the order they
+    complete rather than the order they are in the ``results`` iterable. As usual when waiting for
+    async tasks, the ordering is not guaranteed for tasks that finish at very similar times.
+
+    This function does not return until all tasks in ``results`` have completed, so it would
+    normally be used by being passed to :meth:`trio.Nursery.start_soon()`, rather than being
+    directly awaited in the caller.
+
+    :param results: The :class:`ResultBase` objects to send to the channel.
+    :param channel: The send end of the channel to send to.
+    :param close_on_complete: If ``True`` (the default), the channel will be closed when the
+        function completes. This means that iterating over the receive end of the channel with
+        ``async for`` will complete once all results have been returned.
+
+    .. warning::
+        If ``close_on_complete`` is True and this routine is cancelled then the channel is still
+        closed. (The close is done in a ``finally:`` block.) This means that, in this situation,
+        an ``async for`` loop over the receive end will complete without all results being returned.
+        This is done to avoid a recipient waiting forever.
+
+        In practice, it will very often be the case that the same nursery is used for both this
+        routine and the routine that iterates over the results. In that case, the ``async for``
+        would be interrupted anyway.
+    """
+
+    async def wait_one(result: ResultBase):
+        await result.wait_done()
+        await channel.send(result)
+
+    try:
+        async with open_nursery() as nursery:
+            for r in results:
+                nursery.start_soon(wait_one, r)
+    finally:
+        if close_on_complete:
+            channel.close()

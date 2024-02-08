@@ -1,17 +1,23 @@
-aioresult: Capture the result of a Trio or anyio task
-=====================================================
+Welcome to **aioresult**!
 
-Welcome to aioresult! This is a very small library to capture the result of an asynchronous
-operation, either an async function (with the ``ResultCapture`` class) or more generally (with the
-``Future`` class). It works with `Trio nurseries
+This is a very small library to capture the result of an asynchronous operation, either an async
+function (with the ``ResultCapture`` class) or more generally (with the ``Future`` class). It works
+with `Trio nurseries
 <https://trio.readthedocs.io/en/stable/reference-core.html#nurseries-and-spawning>`__ and `anyio
 task groups <https://anyio.readthedocs.io/en/stable/tasks.html>`__. It is not needed for Python 3.11
 `asyncio task groups <https://docs.python.org/3/library/asyncio-task.html#task-groups>`__ because
 those already return an object representing the task, allowing the result to be retrieved.
 
-The code is hosted on github: https://github.com/arthur-tacca/aioresult
+* Code is hosted on github: https://github.com/arthur-tacca/aioresult
 
-Documentation is on ReadTheDocs: https://aioresult.readthedocs.io/en/stable/docs.html
+* Documentation is on ReadTheDocs:
+
+  * Overview (this page): https://aioresult.readthedocs.io/en/1.0/overview.html
+  * Capturing a result: https://aioresult.readthedocs.io/en/1.0/result_capture.html
+  * Future objects: https://aioresult.readthedocs.io/en/1.0/future.html
+  * Utility functions for waiting: https://aioresult.readthedocs.io/en/1.0/wait.html
+
+* The package is on PyPI: https://pypi.org/project/aioresult/
 
 
 Quick Overview
@@ -26,11 +32,11 @@ raised exception) for later::
     # At this point the tasks have completed, and results are stashed in ResultCapture objects
     print("results", result1.result(), result2.result())
 
-When stored in list, the effect is very similar to the `asyncio gather() function
+When stored in a list, the effect is very similar to the `asyncio gather() function
 <https://docs.python.org/3/library/asyncio-task.html#asyncio.gather>`__::
 
     async with trio.open_nursery() as n:
-        results = [aioresult.ResultCapture.start_soon(n, foo, i) for i in range(10)]
+        results = [ResultCapture.start_soon(n, foo, i) for i in range(10)]
     print("results:", *[r.result() for r in results])
 
 
@@ -38,10 +44,6 @@ When stored in list, the effect is very similar to the `asyncio gather() functio
   to propagate out of the task into their enclosing nursery**. This is unlike some similar
   libraries, which consume the exception in its original context and rethrow it later. In practice,
   aioresult's behaviour is simpler and less error prone.
-
-There is also a derived class ``StartableResultCapture``, meant for async functions that satisfy
-`the Trio task start protocol
-<https://trio.readthedocs.io/en/stable/reference-core.html#trio.Nursery.start>`__.
 
 There is also a simple ``Future`` class that shares a lot of its code with ``ResultCapture``. The
 result is retrieved the same way, but it is set explicitly rather than captured from a task. It is
@@ -60,6 +62,10 @@ connection::
 
 The interface in ``Future`` and ``ResultCapture`` to wait for a result and retrieve it is shared in
 a base class ``ResultBase``.
+
+There are also a few simple utility functions to help waiting for results: ``wait_any()`` and
+``wait_all()`` to wait for one or all of a collection of tasks to complete, and
+``results_to_channel()`` to allow using the results as they become available.
 
 
 Installation and Usage
@@ -105,15 +111,17 @@ It can also be used with anyio task groups::
         asyncio.run(use_aioresult())
 
 
-Running the Tests
------------------
+Contributing
+------------
 
-The automated tests are currently not run through any automated pipeline. To run them yourself,
-start by installing the dependencies::
+This library is deliberately small and limited in scope, so it is essentially "done". An exception
+to this is that the typing annotations are not exhaustive and have not been tested with any type
+checker, so contributions to improve this would be welcome. I could perhaps also be persuaded to
+add support for optionally including a per-task cancel scope (see
+`issue #2 <https://github.com/arthur-tacca/aioresult/issues/2>`__).
 
-    pip install pytest coverage anyio trio
-
-To just run the tests, run ``pytest`` in the root of the repository::
+To test any changes, install the test requirements (see the ``pyproject.toml`` file) and run
+``pytest`` in the root of the repository::
 
     python -m pytest
 
@@ -128,7 +136,7 @@ and what has been missed.
 License
 -------
 
-Copyright Arthur Tacca 2022
+Copyright Arthur Tacca 2022 - 2024
 
 Distributed under the Boost Software License, Version 1.0.
 See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt

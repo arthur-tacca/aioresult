@@ -12,7 +12,7 @@ description = "Capture the result of a Trio or anyio task"
 license = {file = "LICENSE"}
 authors = [{name = "Arthur Tacca"}]
 readme = "README.rst"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 dependencies = ["sniffio>=1.0.0"]
 
 keywords = ["async", "anyio", "trio", "result", "future", "nursery", "taskgroup"]
@@ -38,4 +38,5 @@ repository = "https://github.com/arthur-tacca/aioresult"
 documentation = "https://aioresult.readthedocs.io/en/stable/docs.html"
 
 [project.optional-dependencies]
-docs = ["sphinxcontrib-trio"]
+docs = ["sphinx>=6.1", "sphinxcontrib-trio", "sphinx_rtd_theme", "trio", "anyio"]
+tests = ["pytest", "coverage", "trio", "anyio", "exceptiongroup; python_version < '3.11'"]

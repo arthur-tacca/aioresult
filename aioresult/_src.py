@@ -1,34 +1,10 @@
-# Copyright Arthur Tacca 2022
+# Copyright Arthur Tacca 2022 - 2024
 # Distributed under the Boost Software License, Version 1.0.
 # See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt
 
-import asyncio
-import sniffio
-from typing import Optional, Union
+from typing import Optional
 
-try:
-    import trio
-    import anyio
-
-    # The happy path - both trio and anyio are installed
-    Nursery = Union[trio.Nursery, anyio.abc.TaskGroup]
-
-except ImportError:
-    # Otherwise, at least one of trio or anyio is not installed. Even if neither are, this module
-    # should import successdully, even though it wouldn't be very useful.
-    Nursery = None
-
-    try:
-        import trio
-        Nursery = trio.Nursery
-    except ImportError:
-        trio = None
-
-    try:
-        import anyio
-        Nursery = anyio.abc.TaskGroup
-    except ImportError:
-        pass
+from aioresult._aio import *
 
 
 class FutureSetAgainException(Exception):
@@ -45,10 +21,9 @@ class FutureSetAgainException(Exception):
     This allows access to the future from the exception using the ``args`` attribute:
 
     .. attribute:: args
+        :type: tuple[ResultBase]
 
         1-tuple of the :class:`ResultCapture` or :class:`Future` that raised this exception.
-
-        :type: (ResultBase, )
     """
     pass
 
@@ -65,10 +40,10 @@ class TaskNotDoneException(Exception):
     ``args`` attribute:
 
     .. attribute:: args
+        :type: tuple[ResultBase]
 
         1-tuple of the :class:`ResultCapture` or :class:`Future` that raised this exception.
 
-        :type: (ResultBase, )
     """
     pass
 
@@ -84,29 +59,18 @@ class TaskFailedException(Exception):
     :class:`Future` as attributes:
 
     .. attribute:: __cause__
+        :type: BaseException
 
         The original exception that was raised by the task.
 
-        :type: BaseException
-
 
     .. attribute:: args
+        :type: tuple[ResultBase]
 
         1-tuple of the :class:`ResultCapture` or :class:`Future` that raised this exception.
 
-        :type: (ResultBase, )
     """
     pass
-
-
-def _create_event():
-    sniffed = sniffio.current_async_library()
-    if sniffed == "trio":
-        return trio.Event()
-    elif sniffed == "asyncio":
-        return asyncio.Event()
-    else:
-        raise RuntimeError(f"Unknown async library {sniffed}")
 
 
 class ResultBase:
@@ -114,18 +78,17 @@ class ResultBase:
     task is done and fetching its result.
     """
     def __init__(self):
-        self._done_event = _create_event()
+        self._done_event = create_event()
         self._result = None
         self._exception = None
 
-    def result(self):
+    def result(self) -> object:
         """Returns the captured result of the task.
 
         :return: The value returned by the task.
         :raise TaskNotDoneException: If the task is not done yet; use :meth:`is_done` or
           :meth:`wait_done` to check or wait for completion to avoid this exception.
-        :raise TaskFailedException: If the task failed with an exception; see `Exception handling
-            and design rationale`_.
+        :raise TaskFailedException: If the task failed with an exception; see `Exception handling`_.
         """
         if not self._done_event.is_set():
             raise TaskNotDoneException(self)
@@ -133,7 +96,7 @@ class ResultBase:
             raise TaskFailedException(self) from self._exception
         return self._result
 
-    def exception(self):
+    def exception(self) -> Optional[BaseException]:
         """Returns the exception raised by the task.
 
         It is usually better design to use the :meth:`result` method and catch the exception it
@@ -154,21 +117,30 @@ class ResultBase:
             raise TaskNotDoneException(self)
         return self._exception
 
-    def is_done(self):
+    def is_done(self) -> bool:
         """Returns ``True`` if the task is done i.e. the result (or an exception) is captured.
         Returns ``False`` otherwise.
         """
         return self._done_event.is_set()
 
-    async def wait_done(self):
+    async def wait_done(self) -> None:
         """Waits until the task is done.
 
-        There are specialised situations where it may be useful to use this method to wait until
-        the task is done, typically where you are writing library code and you want to start a
-        routine in a user supplied nursery but wait for it in some other context.
+        This is mainly useful for :class:`Future` instances.
 
-        Typically, though, it is much better design to wait for the task's nursery to complete.
-        Consider a nursery-based approach before using this method.
+        For :class:`ResultCapture` instances, there are specialised situations where it may be
+        useful to use this method to wait until the task is done, typically where you are writing
+        library code and you want to start a routine in a user supplied nursery but wait for it in
+        some other context. Typically, though, it is better design to wait for the task's nursery to
+        complete. Consider a nursery-based approach before using this method.
+
+        .. note::
+            If the underlying routine raises an exception (which includes the case that it is
+            cancelled) then this routine will *not* raise an exception; it will simply return
+            to indicate that the task is done. Similarly, cancelling a call to this routine will
+            *not* cancel the task running in this object. This is in contrast to awaiting an
+            :class:`asyncio.Future` instance, where cancellations propagate directly. See
+            `Exception handling`_ for more information.
         """
         await self._done_event.wait()
 
@@ -188,12 +160,16 @@ class ResultBase:
 
 
 class Future(ResultBase):
-    """Stores a result or exception that is explicitly set by the caller."""
+    """Stores a result or exception that is explicitly set by the caller.
+
+    .. note:: :class:`Future` inherits most of its methods from its base class :class:`ResultBase`;
+       see the documentation for that class for the inherited methods.
+    """
 
     def set_result(self, result):
         """Sets the result of the future to the given value.
 
-        After calling this method, future calls to :meth:`ResultBase.result()` will return the value
+        After calling this method, later calls to :meth:`ResultBase.result()` will return the value
         passed in.
 
         :param result: The result value to be stored.
@@ -202,14 +178,14 @@ class Future(ResultBase):
         """
         self._set_result(result)
 
-    def set_exception(self, exception):
+    def set_exception(self, exception: BaseException):
         """Sets the exception of the future to the given value.
 
-        After calling this method, future calls to :meth:`ResultBase.result()` will throw an
+        After calling this method, later calls to :meth:`ResultBase.result()` will throw an
         exception and calls to :meth:`ResultBase.exception()` will return this exception. The
         exception raised by :meth:`ResultBase.result()` will be a :class:`TaskFailedException`
         rather than the exception passed to this method, which matches the behaviour of
-        :class:`ResultCapture`; see `Exception handling and design rationale`_.
+        :class:`ResultCapture`; see :ref:`Exception handling <exception>`.
 
         :param exception: The exception to be stored.
         :raise FutureSetAgainException: If the result has already been set with :meth:`set_result()`
@@ -227,13 +203,17 @@ class ResultCapture(ResultBase):
 
     :param routine: An async callable.
     :param args: Positional arguments for ``routine``.
+    :param suppress_exception: If ``True``, exceptions derived from :class:`Exception` (not those
+        directly derived from :class:`BaseException` will be caught internally rather than allowed
+        to escape into the enclosing nursery. If ``False`` (the default), all exceptions will be
+        allowed to escape into the enclosing context.
 
     .. note:: :class:`ResultCapture` inherits most of its methods from its base class
       :class:`ResultBase`; see the documentation for that class for the inherited methods.
     """
 
     @classmethod
-    def start_soon(cls: type, nursery: Nursery, routine, *args):
+    def start_soon(cls: type, nursery: Nursery, routine, *args, suppress_exception: bool = False):
         """Runs the task in the given nursery and captures its result.
 
         Under the hood, this simply constructs an instance with ``ResultCapture(routine, *args)``,
@@ -244,156 +224,123 @@ class ResultCapture(ResultBase):
         :param routine: An async callable.
         :param args: Positional arguments for ``routine``. If you want to pass keyword arguments,
             use :func:`functools.partial`.
+        :param suppress_exception: If ``True``, exceptions derived from :class:`Exception` (not
+            those directly derived from :class:`BaseException` will be caught internally rather than
+            allowed to escape into the enclosing nursery. If ``False`` (the default), all exceptions
+            will be allowed to escape into the enclosing context.
         :return: A new :class:`ResultCapture` instance representing the result of the given routine.
         """
-        task = cls(routine, *args)
-        nursery.start_soon(task.run)
-        return task
+        rc = cls(routine, *args, suppress_exception=suppress_exception)
+        nursery.start_soon(rc.run)
+        return rc
 
-    def __init__(self, routine, *args):
+    def __init__(self, routine, *args, suppress_exception: bool = False):
         super().__init__()
         self._routine = routine
         self._args = args
+        self._suppress_exception = suppress_exception
 
-    async def run(self, **kwargs):
+    async def run(self, **kwargs) -> None:
         """Runs the routine and captures its result.
 
-        This is where the magic of :class:`ResultCapture` happens ... except it's not very magical.
-        It just runs the routine passed to the constructor and stores the result in an internal
-        member variable: effectively like ``self._result = await self._routine(*self._args)``. It
-        also wraps that in a ``try:`` ... ``except:`` block and stores any exception raised (but
-        then re-raises the exception immediately; see `Exception handling and design rationale`_ for
-        details). Either way, it sets an internal :class:`trio.Event` or :class:`asyncio.Event`,
-        which is used in :meth:`ResultBase.is_done()` and :meth:`ResultBase.wait_done()`.
+        This is where the magic of :class:`ResultCapture` happens ... except it's not very magical
+        (see `How it works`_ for details).
 
-        Typically you would use the :meth:`start_soon()` class method, which constructs the
+        Typically, you would use the :meth:`start_soon()` class method, which constructs the
         :class:`ResultCapture` and arranges for this :meth:`run()` method to be run in the given
         nursery. But it is reasonable to manually construct the object and call the :meth:`run()`
         method in situations where extra control is needed.
 
+        :param kwargs: Keyword arguments to pass to the routine. This exists mainly to support usage
+            with the task start protocol (see `Wait for a task to finish starting`_). If you want to
+            pass arguments to the routine then pass them as positional arguments to
+            :meth:`start_soon()` or use :func:`functools.partial`.
         :return: Always `None`. To access the return value of the routine, use
             :meth:`ResultBase.result()`.
         :raise BaseException: Whatever exception is raised by the routine.
 
         .. warning::
             Ensure this routine is not called more than once. In particular, do not call it at all
-            if the instance was created with :meth:`start_soon()`, which already calls the this
-            once.
+            if the instance was created with :meth:`start_soon()`, which already calls this once.
         """
         try:
             result = await self._routine(*self._args, **kwargs)
             self._set_result(result)
+        except Exception as e:
+            self._set_exception(e)
+            if not self._suppress_exception:
+                raise  # Allowed the exception to propagate into user nursery
         except BaseException as e:
             self._set_exception(e)
-            raise  # Note the exception is allowed to propagate into user nursery
+            raise  # Allowed the exception to propagate into user nursery
 
+    @property
     def routine(self):
-        """Returns the routine whose result will be captured (passed to the constructor or
-        :meth:`start_soon()`)."""
+        """The routine whose result will be captured. This is the ``routine`` argument that was
+        passed to the constructor or :meth:`start_soon()`."""
         return self._routine
 
+    @property
     def args(self):
-        """Returns the arguments passed to the routine whose result will be captured (this is the
-        ``args`` argument passed to the constructor or :meth:`start_soon()`)."""
+        """The arguments passed to the routine whose result will be captured. This is the ``args``
+        argument that was passed to the constructor or :meth:`start_soon()`."""
         return self._args
 
-
-class _TaskStatus:
-    """Helper class to allow StartableResultCapture to satisfy the Trio start() protocol.
-
-    An instance of this class is passed to the task_status parameter of the routine passed to
-    StartableResultCapture, allowing it to call task_status.started() as usual when it is ready.
-
-    It takes the Future that represents the start value so it can set it when start is complete.
-
-    It also takes another task status object and calls that when the started() method is called.
-    This is for when StartableResultCapture.start_soon() is called with a different startup nursery;
-    the outer task status comes from the .start() method of that nursery, and calling .started() on
-    its task_status is what moves the task from the start nursery to the run nursery.
-    """
-
-    def __init__(self, start_future: Future, outer_task_status):
-        self._start_future = start_future
-        self._outer_task_status = outer_task_status
-
-    def started(self, start_result=None):
-        self._start_future.set_result(start_result)
-        if self._outer_task_status is not None:
-            self._outer_task_status.started(start_result)
-
-
-class StartableResultCapture(ResultCapture):
-    """Captures result of a task and allows waiting until it has finished starting.
-
-    As with :class:`ResultCapture`, the methods to wait for and retrieve the overall result can be
-    found in the :class:`ResultBase` documentation. The startup result is also an instance of
-    :class:`ResultBase`, returned from the :meth:`start_result()` method.
-    """
-
     @classmethod
-    def start_soon(cls, nursery: Nursery, routine, *args, start_nursery: Optional[Nursery] = None):
-        """Runs the task in the given nursery and captures its start result and overall result.
+    def capture_start_and_done_results(
+        cls, run_nursery: Nursery, routine, *args, start_nursery: Optional[Nursery] = None
+    ):
+        """Captures both the startup and completion result of a task.
 
-        Optionally allows specifying another nursery where the task will be run until it has
-        finished starting. If not specified, the whole task including startup will run in the one
-        specified nursery.
+        The first return value represents whether the task has finished starting yet (i.e., whether it
+        has called ``task_status.started()``), and its :meth:`ResultBase.result()` value is the value
+        passed as the argument to ``task_status.started()`` (or ``None`` if no argument is passed). The
+        second return value represents whether the routine has completed entirely (and its return value
+        or exception).
 
-        :param nursery: A :class:`trio.Nursery` or :class:`anyio.abc.TaskGroup` to run the routine.
+        :param run_nursery: The nursery to run the routine once it has finished starting.
         :param routine: An async callable.
         :param args: Positional arguments for ``routine``. If you want to pass keyword arguments,
             use :func:`functools.partial`.
-        :param nursery: Optional nursery to run just the startup of the task.
-        :return: A new :class:`ResultCapture` instance representing the result of the given routine.
+        :param start_nursery: The nursery to run the routine until it has finished starting. If this is
+            omitted then ``run_nursery`` is used.
+        :return: A tuple ``(start_result, done_result)`` representing the value returned from the
+            routine's startup and its completion.
+
+        .. note:: The semantics are a little fiddly if the routine raises an exception before it
+            completes startup (i.e., before it calls ``task_status.started()``):
+
+                * The task is running (only) in the ``start_nursery`` until this point (see
+                  :meth:`trio.Nursery.start()`), so the exception is propagated out in only
+                  ``start_nursery``, rather than ``run_nursery``.
+                * The exception is recorded in  ``start_result`` (because exceptions before startup is
+                  complete are recorded in the context of the startup nursery).
+                * The potentially surprising part is that the same exception is also recorded in
+                  ``done_result`` (because ``done_result.run()`` directly wraps the call to the
+                  routine).
+
+            Another fiddly case is if the routine returns before it calls ``task_status.started()``:
+
+                * This is considered an error so a ``RuntimeError`` exception is raised (see
+                  :meth:`trio.Nursery.start()`), and again this is propagated out in only
+                  ``start_nursery``, rather than ``run_nursery``.
+                * This ``RuntimeError`` exception is recorded ``start_result``.
+                * However, ``done_result`` records whatever result was returned by the routine, and
+                  ``done_result.exception()`` is ``None`` (again, this is because ``done_result.run()``
+                  directly wraps the call to the routine).
+
+            Once the routine completes startup (i.e., after it has called ``task_status.started()``),
+            the semantics are simple: any return value or exception is associated with ``done_result``,
+            and the routine is now running in the context of ``run_nursery`` so any exception is
+            propagated out into the ``run_nursery``.
+
+            A consequence of all the above cases is that ``start_result.is_done()`` and
+            ``done_result.is_done()`` **are eventually both true regardless of when and how the routine
+            finished**.
         """
-        task = cls(routine, *args)
         if start_nursery is None:
-            nursery.start_soon(task.run)
-        else:
-            start_nursery.start_soon(nursery.start, task.run)
-        return task
-
-    def __init__(self, routine, *args):
-        super().__init__(routine, *args)
-        self._start_future = Future()
-
-    async def run(self, task_status=None):
-        """Runs the routine and captures its result.
-
-        As with :meth:`ResultCapture.run()`, this is called internally by :meth:`start_soon()` so is
-        rarely needed directly, but can be useful when some extra control is needed.
-
-        :param task_status: The ``.started()`` method of this object is called when called by the
-            routine passed to the constructor.
-        """
-        try:
-            result = await self._routine(
-                *self._args, task_status=_TaskStatus(self._start_future, task_status)
-            )
-            self._set_result(result)
-        except BaseException as e:
-            self._set_exception(e)
-            raise  # Note the exception is allowed to propagate into user nursery
-
-    def start_result(self) -> ResultBase:
-        """Returns the start result i.e. the value passed to ``task_status.started()``.
-
-        This is an instance of :class:`ResultBase`, which allows waiting for the task to start with
-        :meth:`ResultBase.wait_done()` and retrieving the result with :meth:`ResultBase.result()`.
-
-        .. note::
-            Although the interface of :class:`ResultBase` allows fetching a raised exception, in
-            this case the exception is never set. If the task raises an exception during startup
-            then the exception is set on the overall :class:`StartableResultCapture` object (and
-            the object returned by this method will have :meth:`ResultBase.is_done()` still return
-            ``False``).
-
-        .. note::
-            It is possible for :meth:`ResultBase.is_done()` of the object returned to be ``False``
-            even if the overall result has :meth:`ResultBase.is_done()` equal to ``True``. In other
-            words, a task can completely finish without ever having started! That can happen if the
-            task raises an exception during its startup code, or simply returns without ever having
-            called ``task_status.started()`` (in which case the exception is a
-            :class:`RuntimeError`).
-        """
-        return self._start_future
-
+            start_nursery = run_nursery
+        done_result = cls(routine, *args)
+        start_result = cls(run_nursery.start, done_result.run)
+        start_nursery.start_soon(start_result.run)
+        return start_result, done_result
