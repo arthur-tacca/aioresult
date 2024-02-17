@@ -7,7 +7,7 @@ from aioresult._aio import *
 from aioresult._src import ResultBase
 
 
-ResultT = TypeVar("ResultT")
+ResultBaseT = TypeVar("ResultBaseT", bound=ResultBase[Any])
 
 
 async def wait_all(results: Iterable[ResultBase[Any]]) -> None:
@@ -24,7 +24,7 @@ async def wait_all(results: Iterable[ResultBase[Any]]) -> None:
         await r.wait_done()
 
 
-async def wait_any(results: Iterable[ResultBase[ResultT]]) -> ResultBase[ResultT]:
+async def wait_any(results: Iterable[ResultBaseT]) -> ResultBaseT:
     """Waits until one of the tasks is complete, and returns that object.
 
     Note that it is possible that, when this function returns, more than one of the tasks has
@@ -35,9 +35,9 @@ async def wait_any(results: Iterable[ResultBase[ResultT]]) -> ResultBase[ResultT
     :return: One of the objects in ``result``.
     :raise RuntimeError: If ``results`` is empty.
     """
-    first_result: Optional[ResultBase[ResultT]] = None
+    first_result: Optional[ResultBaseT] = None
 
-    async def wait_one(result: ResultBase[ResultT]) -> None:
+    async def wait_one(result: ResultBaseT) -> None:
         nonlocal first_result
         await result.wait_done()
         if first_result is None:
@@ -55,8 +55,8 @@ async def wait_any(results: Iterable[ResultBase[ResultT]]) -> ResultBase[ResultT
 
 
 async def results_to_channel(
-    results: Iterable[ResultBase[ResultT]],
-    channel: SendChannel[ResultBase[ResultT]],
+    results: Iterable[ResultBaseT],
+    channel: SendChannel[ResultBaseT],
     close_on_complete: bool = True,
 ) -> None:
     """Waits for :class:`ResultBase` tasks to complete, and sends them to an async channel.
@@ -86,7 +86,7 @@ async def results_to_channel(
         would be interrupted anyway.
     """
 
-    async def wait_one(result: ResultBase[ResultT]) -> None:
+    async def wait_one(result: ResultBaseT) -> None:
         await result.wait_done()
         await channel.send(result)
 
