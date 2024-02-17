@@ -63,6 +63,9 @@ else:
         async def wait(self) -> object:
             ...
 
+        def set(self) -> object:
+            ...
+
 
     class SendChannel(Protocol[T_contra]):
         """A trio MemorySendChannel or anyio MemoryObjectSendStream."""

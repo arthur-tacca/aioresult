@@ -2,12 +2,15 @@
 # Distributed under the Boost Software License, Version 1.0.
 # See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt
 
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional, TypeVar
 from aioresult._aio import *
 from aioresult._src import ResultBase
 
 
-async def wait_all(results: Iterable[ResultBase]) -> None:
+ResultT = TypeVar("ResultT")
+
+
+async def wait_all(results: Iterable[ResultBase[Any]]) -> None:
     """Waits until all tasks are done.
 
     The implementation is extremely simple: it just iterates over the parameter and calls
@@ -21,7 +24,7 @@ async def wait_all(results: Iterable[ResultBase]) -> None:
         await r.wait_done()
 
 
-async def wait_any(results: Iterable[ResultBase]) -> ResultBase:
+async def wait_any(results: Iterable[ResultBase[ResultT]]) -> ResultBase[ResultT]:
     """Waits until one of the tasks is complete, and returns that object.
 
     Note that it is possible that, when this function returns, more than one of the tasks has
@@ -32,9 +35,9 @@ async def wait_any(results: Iterable[ResultBase]) -> ResultBase:
     :return: One of the objects in ``result``.
     :raise RuntimeError: If ``results`` is empty.
     """
-    first_result: Optional[ResultBase] = None
+    first_result: Optional[ResultBase[ResultT]] = None
 
-    async def wait_one(result: ResultBase):
+    async def wait_one(result: ResultBase[ResultT]) -> None:
         nonlocal first_result
         await result.wait_done()
         if first_result is None:
@@ -52,7 +55,9 @@ async def wait_any(results: Iterable[ResultBase]) -> ResultBase:
 
 
 async def results_to_channel(
-    results: Iterable[ResultBase], channel: SendChannel, close_on_complete: bool = True
+    results: Iterable[ResultBase[ResultT]],
+    channel: SendChannel[ResultBase[ResultT]],
+    close_on_complete: bool = True,
 ) -> None:
     """Waits for :class:`ResultBase` tasks to complete, and sends them to an async channel.
 
@@ -81,7 +86,7 @@ async def results_to_channel(
         would be interrupted anyway.
     """
 
-    async def wait_one(result: ResultBase):
+    async def wait_one(result: ResultBase[ResultT]) -> None:
         await result.wait_done()
         await channel.send(result)
 
