@@ -27,9 +27,10 @@ if not TYPE_CHECKING and hasattr(sys, 'building_aioresult_docs'):
     import trio
     import anyio.abc
     import anyio.streams.memory
+    T = TypeVar("T")
     Nursery = Union[trio.Nursery, anyio.abc.TaskGroup]
     Event = Union[trio.Event, asyncio.Event]
-    SendChannel = Union[trio.MemorySendChannel, anyio.streams.memory.MemoryObjectSendStream]
+    SendChannel = Union[trio.MemorySendChannel[T], anyio.streams.memory.MemoryObjectSendStream[T]]
 else:
     # Define the interfaces we need from either package.
 
