@@ -2,7 +2,7 @@
 # Distributed under the Boost Software License, Version 1.0.
 # See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt
 
-from typing import Any, Awaitable, Callable, Generic, Optional, Tuple, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Optional, Tuple, TypeVar, cast
 
 from typing_extensions import TypeVarTuple, Unpack
 
@@ -11,6 +11,7 @@ from aioresult._aio import *
 
 ResultT = TypeVar("ResultT")
 ArgsT = TypeVarTuple("ArgsT")
+_UNSET: Any = cast(Any, object())
 
 
 class FutureSetAgainException(Exception):
@@ -85,10 +86,10 @@ class ResultBase(Generic[ResultT]):
     """
     def __init__(self) -> None:
         self._done_event = create_event()
-        self._result: Optional[ResultT] = None
+        self._result: ResultT = _UNSET
         self._exception: Optional[BaseException] = None
 
-    def result(self) -> object:
+    def result(self) -> ResultT:
         """Returns the captured result of the task.
 
         :return: The value returned by the task.
@@ -100,6 +101,7 @@ class ResultBase(Generic[ResultT]):
             raise TaskNotDoneException(self)
         if self._exception is not None:
             raise TaskFailedException(self) from self._exception
+        assert self._result is not _UNSET
         return self._result
 
     def exception(self) -> Optional[BaseException]:
