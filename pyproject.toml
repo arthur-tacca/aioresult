@@ -13,7 +13,10 @@ license = {file = "LICENSE"}
 authors = [{name = "Arthur Tacca"}]
 readme = "README.rst"
 requires-python = ">=3.9"
-dependencies = ["sniffio>=1.0.0"]
+dependencies = [
+    "sniffio>=1.0.0",
+    "typing_extensions>=4.1.0",  # First version with TypeVarTuple/Unpack
+]
 
 keywords = ["async", "anyio", "trio", "result", "future", "nursery", "taskgroup"]
 classifiers = [
