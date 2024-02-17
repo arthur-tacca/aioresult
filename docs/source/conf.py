@@ -22,6 +22,9 @@ import sys
 # So autodoc can import our package
 sys.path.insert(0, os.path.abspath('../..'))
 
+# Set an attribute, so aioresult._aio knows that we're building docs.
+sys.building_aioresult_docs = True
+
 # Warn about all references to unknown targets
 nitpicky = True
 # Except for these ones, which we expect to point to unknown targets:
