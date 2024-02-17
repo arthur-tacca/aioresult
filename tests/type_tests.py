@@ -1,4 +1,5 @@
 """Run as part of type checking, not at runtime."""
+# pyright: reportUnusedVariable=false
 from aioresult._aio import (
     Nursery as NurseryProto,
     CancelScope as CancelScopeProto,

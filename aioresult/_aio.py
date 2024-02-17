@@ -8,7 +8,7 @@ The reason for defining these, rather than just using anyio (which already suppo
 wrappers for asyncio) is to allow use of aioresult with Trio even when anyio is not installed.
 """
 from typing import (
-    AsyncContextManager, Awaitable, Callable, Protocol, TypeVar, Union, TYPE_CHECKING,
+    Any, AsyncContextManager, Awaitable, Callable, Protocol, TypeVar, Union, TYPE_CHECKING, cast,
 )
 from typing_extensions import TypeVarTuple, Unpack
 
@@ -43,7 +43,8 @@ else:
         """A Trio Nursery or anyio TaskGroup."""
         @property
         def cancel_scope(self) -> CancelScope:
-            """We only need read-only access."""
+            # We only need read-only access.
+            ...
 
         def start_soon(
             self,
@@ -53,7 +54,7 @@ else:
             ...
 
         # This can't be typed yet.
-        async def start(self, func: Callable[..., Awaitable[RetT]], *args: object) -> RetT:
+        async def start(self, func: Callable[..., Awaitable[RetT]], /, *args: object) -> RetT:
             ...
 
     class Event(Protocol):
@@ -76,16 +77,16 @@ else:
         def close(self) -> None:
             ...
 
-
 try:
     import trio
 except ImportError:
-    # Will only be used if user code imports trio.
-    trio = None  # type: ignore
+    # It's fine if trio/anyio is not installed, it should never be accessed.
+    # Suppress errors about this being undefined, or None checks
+    trio = cast(Any, None)
 try:
     import anyio
 except ImportError:
-    anyio = None  # type: ignore
+    anyio = cast(Any, None)
 
 
 def create_event() -> Event:

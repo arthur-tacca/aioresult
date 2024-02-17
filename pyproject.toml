@@ -62,3 +62,8 @@ disallow_incomplete_defs = true
 disallow_untyped_calls = true
 disallow_untyped_decorators = true
 disallow_untyped_defs = true
+
+[tool.pyright]
+include = ["aioresult/", "tests/type_tests.py"]
+pythonVersion = "3.9"
+typeCheckingMode = "strict"
