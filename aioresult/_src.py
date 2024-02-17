@@ -246,13 +246,18 @@ class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
         nursery.start_soon(rc.run)
         return rc
 
-    def __init__(self, routine, *args, suppress_exception: bool = False):
+    def __init__(
+        self,
+        routine: Callable[..., Awaitable[ResultT]],
+        *args: object,
+        suppress_exception: bool = False,
+    ) -> None:
         super().__init__()
         self._routine = routine
         self._args = args
         self._suppress_exception = suppress_exception
 
-    async def run(self, **kwargs) -> None:
+    async def run(self, **kwargs: Any) -> None:
         """Runs the routine and captures its result.
 
         This is where the magic of :class:`ResultCapture` happens ... except it's not very magical
@@ -287,21 +292,25 @@ class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
             raise  # Allowed the exception to propagate into user nursery
 
     @property
-    def routine(self):
+    def routine(self) -> Callable[..., Awaitable[ResultT]]:
         """The routine whose result will be captured. This is the ``routine`` argument that was
         passed to the constructor or :meth:`start_soon()`."""
         return self._routine
 
     @property
-    def args(self):
+    def args(self) -> Tuple[object, ...]:
         """The arguments passed to the routine whose result will be captured. This is the ``args``
         argument that was passed to the constructor or :meth:`start_soon()`."""
         return self._args
 
     @classmethod
     def capture_start_and_done_results(
-        cls, run_nursery: Nursery, routine, *args, start_nursery: Optional[Nursery] = None
-    ):
+        cls,
+        run_nursery: Nursery,
+        routine: Callable[..., Awaitable[ResultT]],
+        *args: Any,
+        start_nursery: Optional[Nursery] = None,
+    ) -> Tuple['ResultCapture[Any]', 'ResultCapture[ResultT]']:
         """Captures both the startup and completion result of a task.
 
         The first return value represents whether the task has finished starting yet (i.e., whether it
