@@ -43,3 +43,22 @@ Documentation = "https://aioresult.readthedocs.io/en/v1.0/overview.html"
 [project.optional-dependencies]
 docs = ["sphinx>=6.1", "sphinxcontrib-trio", "sphinx_rtd_theme", "trio", "anyio"]
 tests = ["pytest", "coverage", "trio", "anyio", "exceptiongroup; python_version < '3.11'"]
+
+[tool.mypy]
+python_version = "3.9"
+files = ["aioresult/", "tests/type_tests.py"]
+
+strict = true
+local_partial_types = true
+warn_unused_ignores = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_return_any = true
+
+disallow_any_expr = false
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true

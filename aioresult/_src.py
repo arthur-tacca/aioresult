@@ -172,7 +172,7 @@ class Future(ResultBase[ResultT], Generic[ResultT]):
        see the documentation for that class for the inherited methods.
     """
 
-    def set_result(self, result: ResultT):
+    def set_result(self, result: ResultT) -> None:
         """Sets the result of the future to the given value.
 
         After calling this method, later calls to :meth:`ResultBase.result()` will return the value
