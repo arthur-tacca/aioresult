@@ -46,7 +46,7 @@ tests = ["pytest", "coverage", "trio", "anyio", "exceptiongroup; python_version 
 
 [tool.mypy]
 python_version = "3.9"
-files = ["aioresult/", "tests/type_tests.py"]
+files = ["aioresult/", "tests/"]
 
 strict = true
 local_partial_types = true
@@ -64,6 +64,6 @@ disallow_untyped_decorators = true
 disallow_untyped_defs = true
 
 [tool.pyright]
-include = ["aioresult/", "tests/type_tests.py"]
+include = ["aioresult/", "tests/"]
 pythonVersion = "3.9"
 typeCheckingMode = "strict"
