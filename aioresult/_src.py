@@ -2,9 +2,15 @@
 # Distributed under the Boost Software License, Version 1.0.
 # See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt
 
-from typing import Optional
+from typing import Any, Awaitable, Callable, Generic, Optional, Tuple, TypeVar
+
+from typing_extensions import TypeVarTuple, Unpack
 
 from aioresult._aio import *
+
+
+ResultT = TypeVar("ResultT")
+ArgsT = TypeVarTuple("ArgsT")
 
 
 class FutureSetAgainException(Exception):
@@ -73,14 +79,14 @@ class TaskFailedException(Exception):
     pass
 
 
-class ResultBase:
+class ResultBase(Generic[ResultT]):
     """Base class for :class:`ResultCapture` and :class:`Future`. Has methods for checking if the
     task is done and fetching its result.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self._done_event = create_event()
-        self._result = None
-        self._exception = None
+        self._result: Optional[ResultT] = None
+        self._exception: Optional[BaseException] = None
 
     def result(self) -> object:
         """Returns the captured result of the task.
@@ -144,14 +150,14 @@ class ResultBase:
         """
         await self._done_event.wait()
 
-    def _set_result(self, result):
+    def _set_result(self, result: ResultT) -> None:
         """Protected implementation of Future.set_result(), also used in ResultCapture.run()."""
         if self._done_event.is_set():
             raise FutureSetAgainException(self)
         self._result = result
         self._done_event.set()
 
-    def _set_exception(self, exception):
+    def _set_exception(self, exception: BaseException) -> None:
         """Protected implementation of Future.set_exception(), also used in ResultCapture.run()."""
         if self._done_event.is_set():
             raise FutureSetAgainException(self)
@@ -159,14 +165,14 @@ class ResultBase:
         self._done_event.set()
 
 
-class Future(ResultBase):
+class Future(ResultBase[ResultT], Generic[ResultT]):
     """Stores a result or exception that is explicitly set by the caller.
 
     .. note:: :class:`Future` inherits most of its methods from its base class :class:`ResultBase`;
        see the documentation for that class for the inherited methods.
     """
 
-    def set_result(self, result):
+    def set_result(self, result: ResultT):
         """Sets the result of the future to the given value.
 
         After calling this method, later calls to :meth:`ResultBase.result()` will return the value
@@ -178,7 +184,7 @@ class Future(ResultBase):
         """
         self._set_result(result)
 
-    def set_exception(self, exception: BaseException):
+    def set_exception(self, exception: BaseException) -> None:
         """Sets the exception of the future to the given value.
 
         After calling this method, later calls to :meth:`ResultBase.result()` will throw an
@@ -194,7 +200,7 @@ class Future(ResultBase):
         self._set_exception(exception)
 
 
-class ResultCapture(ResultBase):
+class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
     """Captures the result of a task for later access.
 
     Most usually, an instance is created with the :meth:`start_soon()` class method. However, it is
@@ -213,7 +219,13 @@ class ResultCapture(ResultBase):
     """
 
     @classmethod
-    def start_soon(cls: type, nursery: Nursery, routine, *args, suppress_exception: bool = False):
+    def start_soon(
+        cls,
+        nursery: Nursery,
+        routine: Callable[[Unpack[ArgsT]], Awaitable[ResultT]],
+        *args: Unpack[ArgsT],
+        suppress_exception: bool = False,
+    ) -> 'ResultCapture[ResultT]':
         """Runs the task in the given nursery and captures its result.
 
         Under the hood, this simply constructs an instance with ``ResultCapture(routine, *args)``,
