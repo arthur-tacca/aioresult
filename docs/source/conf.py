@@ -31,6 +31,10 @@ nitpicky = True
 nitpick_ignore = [
     # Format is ("sphinx reference type", "string"), e.g.:
     ("py:obj", "bytes-like"),
+    ("py:class", "aioresult._src.ResultT"),
+    ("py:class", "aioresult._wait.ResultBaseT"),
+    ("py:obj", "aioresult._src.ResultT"),
+    ("py:class", "ArgsT"),
 ]
 autodoc_inherit_docstrings = False
 default_role = "obj"
