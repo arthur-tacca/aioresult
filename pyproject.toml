@@ -13,7 +13,10 @@ license = {file = "LICENSE"}
 authors = [{name = "Arthur Tacca"}]
 readme = "README.rst"
 requires-python = ">=3.9"
-dependencies = ["sniffio>=1.0.0"]
+dependencies = [
+    "sniffio>=1.0.0",
+    "typing_extensions>=4.1.0",  # First version with TypeVarTuple/Unpack
+]
 
 keywords = ["async", "anyio", "trio", "result", "future", "nursery", "taskgroup"]
 classifiers = [
@@ -40,3 +43,27 @@ Documentation = "https://aioresult.readthedocs.io/en/v1.0/overview.html"
 [project.optional-dependencies]
 docs = ["sphinx>=6.1", "sphinxcontrib-trio", "sphinx_rtd_theme", "trio", "anyio"]
 tests = ["pytest", "coverage", "trio", "anyio", "exceptiongroup; python_version < '3.11'"]
+
+[tool.mypy]
+python_version = "3.9"
+files = ["aioresult/", "tests/"]
+
+strict = true
+local_partial_types = true
+warn_unused_ignores = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_return_any = true
+
+disallow_any_expr = false
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+
+[tool.pyright]
+include = ["aioresult/", "tests/"]
+pythonVersion = "3.9"
+typeCheckingMode = "strict"
