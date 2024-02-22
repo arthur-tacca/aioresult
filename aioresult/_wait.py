@@ -10,7 +10,7 @@ from aioresult._src import ResultBase
 ResultBaseT = TypeVar("ResultBaseT", bound=ResultBase[Any])
 
 
-async def wait_all(results: Iterable[ResultBase[Any]]) -> None:
+async def wait_all(results: Iterable[ResultBase[object]]) -> None:
     """Waits until all tasks are done.
 
     The implementation is extremely simple: it just iterates over the parameter and calls

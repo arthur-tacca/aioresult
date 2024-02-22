@@ -3,7 +3,7 @@
 from typing import List
 from typing_extensions import assert_type
 
-from aioresult import ResultCapture
+from aioresult import Future, ResultCapture, wait_any
 from aioresult._aio import (
     Nursery as NurseryProto,
     CancelScope as CancelScopeProto,
@@ -36,8 +36,29 @@ async def sample_func(a: int, b: str) -> List[str]:
     return []
 
 
+async def returns_int() -> int:
+    return 0
+
+
+async def returns_bool() -> bool:
+    return True
+
+
 async def check_resultcapture_start_soon(nursery: NurseryProto) -> None:
     ResultCapture.start_soon(nursery, sample_func, 1)  # type: ignore
     ResultCapture.start_soon(nursery, sample_func, 1, 'two', False)  # type: ignore
     result = ResultCapture.start_soon(nursery, sample_func, 1, 'two')
     assert_type(result.result(), List[str])
+
+
+async def check_is_covariant(nursery: NurseryProto) -> None:
+    res_int: ResultCapture[int] = ResultCapture.start_soon(nursery, returns_int)
+    res_bool: ResultCapture[bool] = ResultCapture.start_soon(nursery, returns_bool)
+    also_int: ResultCapture[int] = res_bool
+
+    res_one: ResultCapture[int] = await wait_any([res_int])
+    res_two: ResultCapture[int] = await wait_any([res_int, res_bool])
+    res_three: ResultCapture[List[str]] = await wait_any([
+        ResultCapture.start_soon(nursery, sample_func, 1, 'two'),
+        ResultCapture.start_soon(nursery, sample_func, 1, 'two')
+    ])

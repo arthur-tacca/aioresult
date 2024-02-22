@@ -10,8 +10,9 @@ from aioresult._aio import *
 
 
 ResultT = TypeVar("ResultT")
+ResultT_co = TypeVar("ResultT_co", covariant=True)
 ArgsT = TypeVarTuple("ArgsT")
-_UNSET: Any = cast(Any, object())
+_UNSET: Any = cast(Any, object())  # Sentinel, we manually check it's not present.
 
 
 class FutureSetAgainException(Exception):
@@ -52,7 +53,7 @@ class TaskNotDoneException(Exception):
         1-tuple of the :class:`ResultCapture` or :class:`Future` that raised this exception.
 
     """
-    pass
+    args: Tuple['ResultBase[object]']
 
 
 class TaskFailedException(Exception):
@@ -80,16 +81,17 @@ class TaskFailedException(Exception):
     pass
 
 
-class ResultBase(Generic[ResultT]):
+# This is covariant even though result is technically mutable.
+class ResultBase(Generic[ResultT_co]):
     """Base class for :class:`ResultCapture` and :class:`Future`. Has methods for checking if the
     task is done and fetching its result.
     """
     def __init__(self) -> None:
         self._done_event = create_event()
-        self._result: ResultT = _UNSET
+        self._result: ResultT_co = _UNSET
         self._exception: Optional[BaseException] = None
 
-    def result(self) -> ResultT:
+    def result(self) -> ResultT_co:
         """Returns the captured result of the task.
 
         :return: The value returned by the task.
@@ -152,11 +154,15 @@ class ResultBase(Generic[ResultT]):
         """
         await self._done_event.wait()
 
-    def _set_result(self, result: ResultT) -> None:
-        """Protected implementation of Future.set_result(), also used in ResultCapture.run()."""
+    def _set_result(self, result: object) -> None:
+        """Protected implementation of Future.set_result(), also used in ResultCapture.run().
+
+        This is type-unsafe, since we're modifying it but ResultT is covariant. The caller needs to
+        ensure these match.
+        """
         if self._done_event.is_set():
             raise FutureSetAgainException(self)
-        self._result = result
+        self._result = cast(ResultT_co, result)
         self._done_event.set()
 
     def _set_exception(self, exception: BaseException) -> None:
@@ -167,6 +173,7 @@ class ResultBase(Generic[ResultT]):
         self._done_event.set()
 
 
+# Invariant, because set_result is public.
 class Future(ResultBase[ResultT], Generic[ResultT]):
     """Stores a result or exception that is explicitly set by the caller.
 
@@ -202,7 +209,7 @@ class Future(ResultBase[ResultT], Generic[ResultT]):
         self._set_exception(exception)
 
 
-class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
+class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
     """Captures the result of a task for later access.
 
     Most usually, an instance is created with the :meth:`start_soon()` class method. However, it is
@@ -224,10 +231,10 @@ class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
     def start_soon(
         cls,
         nursery: Nursery,
-        routine: Callable[[Unpack[ArgsT]], Awaitable[ResultT]],
+        routine: Callable[[Unpack[ArgsT]], Awaitable[ResultT_co]],
         *args: Unpack[ArgsT],
         suppress_exception: bool = False,
-    ) -> 'ResultCapture[ResultT]':
+    ) -> 'ResultCapture[ResultT_co]':
         """Runs the task in the given nursery and captures its result.
 
         Under the hood, this simply constructs an instance with ``ResultCapture(routine, *args)``,
@@ -250,7 +257,7 @@ class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
 
     def __init__(
         self,
-        routine: Callable[..., Awaitable[ResultT]],
+        routine: Callable[..., Awaitable[ResultT_co]],
         *args: object,
         suppress_exception: bool = False,
     ) -> None:
@@ -294,7 +301,7 @@ class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
             raise  # Allowed the exception to propagate into user nursery
 
     @property
-    def routine(self) -> Callable[..., Awaitable[ResultT]]:
+    def routine(self) -> Callable[..., Awaitable[ResultT_co]]:
         """The routine whose result will be captured. This is the ``routine`` argument that was
         passed to the constructor or :meth:`start_soon()`."""
         return self._routine
@@ -309,10 +316,10 @@ class ResultCapture(ResultBase[ResultT], Generic[ResultT]):
     def capture_start_and_done_results(
         cls,
         run_nursery: Nursery,
-        routine: Callable[..., Awaitable[ResultT]],
+        routine: Callable[..., Awaitable[ResultT_co]],
         *args: Any,
         start_nursery: Optional[Nursery] = None,
-    ) -> Tuple['ResultCapture[Any]', 'ResultCapture[ResultT]']:
+    ) -> Tuple['ResultCapture[Any]', 'ResultCapture[ResultT_co]']:
         """Captures both the startup and completion result of a task.
 
         The first return value represents whether the task has finished starting yet (i.e., whether it
