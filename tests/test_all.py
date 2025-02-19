@@ -119,7 +119,7 @@ async def test_resultcapture(open_nursery: OpenNursery) -> None:
                     r1.exception()
 
                 # Run task 1 run() manually
-                wait_result = await r1.run()  # type: ignore[func-returns-value]
+                wait_result = await r1.run()
                 assert wait_result is None
                 assert r1.is_done() and not r2.is_done() and not r3.is_done() and not r4.is_done()
 
@@ -231,7 +231,7 @@ async def test_startable_success(open_nursery: OpenNursery) -> None:
             assert not rc2.is_done() and not src2.is_done()
             assert not rc3.is_done() and not src3.is_done()
 
-            start_result1 = await run_nursery.start(rc1.run)  # type: ignore[func-returns-value]
+            start_result1 = await run_nursery.start(rc1.run)
             assert start_result1 == 0.5 and not rc1.is_done()
             assert not rc2.is_done() and not src2.is_done()
             assert not rc3.is_done() and not src3.is_done()

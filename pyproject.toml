@@ -47,6 +47,7 @@ tests = ["pytest", "coverage", "trio", "anyio", "exceptiongroup; python_version 
 [tool.mypy]
 python_version = "3.9"
 files = ["aioresult/", "tests/"]
+disable_error_code = ["func-returns-value"]
 
 strict = true
 local_partial_types = true
@@ -67,3 +68,4 @@ disallow_untyped_defs = true
 include = ["aioresult/", "tests/"]
 pythonVersion = "3.9"
 typeCheckingMode = "strict"
+reportUnnecessaryTypeIgnoreComment = true

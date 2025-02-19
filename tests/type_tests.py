@@ -3,7 +3,7 @@
 from typing import List
 from typing_extensions import assert_type
 
-from aioresult import Future, ResultCapture, wait_any
+from aioresult import ResultCapture, wait_any, Future, ResultBase
 from aioresult._aio import (
     Nursery as NurseryProto,
     CancelScope as CancelScopeProto,
@@ -55,6 +55,13 @@ async def check_is_covariant(nursery: NurseryProto) -> None:
     res_int: ResultCapture[int] = ResultCapture.start_soon(nursery, returns_int)
     res_bool: ResultCapture[bool] = ResultCapture.start_soon(nursery, returns_bool)
     also_int: ResultCapture[int] = res_bool
+    not_str: ResultCapture[str] = res_bool  # type: ignore
+
+    future_bool = Future[bool]()
+    future_bool.set_result(True)
+    future_bool.set_result(1)  # type: ignore
+    base_int: ResultBase[int] = future_bool
+    future_int: Future[int] = future_bool  # type: ignore
 
     res_one: ResultCapture[int] = await wait_any([res_int])
     res_two: ResultCapture[int] = await wait_any([res_int, res_bool])

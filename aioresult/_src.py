@@ -231,10 +231,10 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
     def start_soon(
         cls,
         nursery: Nursery,
-        routine: Callable[[Unpack[ArgsT]], Awaitable[ResultT_co]],
+        routine: Callable[[Unpack[ArgsT]], Awaitable[ResultT]],
         *args: Unpack[ArgsT],
         suppress_exception: bool = False,
-    ) -> 'ResultCapture[ResultT_co]':
+    ) -> 'ResultCapture[ResultT]':
         """Runs the task in the given nursery and captures its result.
 
         Under the hood, this simply constructs an instance with ``ResultCapture(routine, *args)``,
@@ -251,9 +251,9 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
             will be allowed to escape into the enclosing context.
         :return: A new :class:`ResultCapture` instance representing the result of the given routine.
         """
-        rc = cls(routine, *args, suppress_exception=suppress_exception)
+        rc = cls(routine, *args, suppress_exception=suppress_exception)  # type: ignore
         nursery.start_soon(rc.run)
-        return rc
+        return rc  # type: ignore
 
     def __init__(
         self,
@@ -316,10 +316,10 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
     def capture_start_and_done_results(
         cls,
         run_nursery: Nursery,
-        routine: Callable[..., Awaitable[ResultT_co]],
+        routine: Callable[..., Awaitable[ResultT]],
         *args: Any,
         start_nursery: Optional[Nursery] = None,
-    ) -> Tuple['ResultCapture[Any]', 'ResultCapture[ResultT_co]']:
+    ) -> Tuple['ResultCapture[Any]', 'ResultCapture[ResultT]']:
         """Captures both the startup and completion result of a task.
 
         The first return value represents whether the task has finished starting yet (i.e., whether it
@@ -370,7 +370,7 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
         """
         if start_nursery is None:
             start_nursery = run_nursery
-        done_result = cls(routine, *args)
-        start_result = cls(run_nursery.start, done_result.run)
+        done_result = cls(routine, *args)  # type: ignore
+        start_result = cls(run_nursery.start, done_result.run)  # pyright: ignore
         start_nursery.start_soon(start_result.run)
-        return start_result, done_result
+        return start_result, done_result  # type: ignore
