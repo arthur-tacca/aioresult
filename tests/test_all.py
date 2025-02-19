@@ -1,7 +1,6 @@
-from typing import (
-    Any, AsyncContextManager, AsyncIterable, Callable, Generator, List, Optional,
-    Tuple,
-)
+from collections.abc import AsyncIterable, Callable
+from contextlib import AbstractAsyncContextManager
+from typing import Any, Generator, Optional
 from typing_extensions import TypeAlias
 import contextlib
 import sys
@@ -20,7 +19,7 @@ from aioresult import *
 from aioresult._aio import Nursery as Nursery, SendChannel
 
 
-OpenNursery: TypeAlias = Callable[[], AsyncContextManager[Nursery]]
+OpenNursery: TypeAlias = Callable[[], AbstractAsyncContextManager[Nursery]]
 
 
 # We run each test three times:
@@ -394,7 +393,7 @@ async def test_to_channel(open_nursery: OpenNursery, resultcapture_test_mode: st
 
 if __name__ == "__main__":
     # Manually run the test functions - useful for debugging test failures.
-    test_conditions: List[Tuple[Any, Any, str]] = [
+    test_conditions: list[tuple[Any, Any, str]] = [
         (trio.run, trio.open_nursery, "trio"),
         (anyio.run, anyio.create_task_group, "anyio-asyncio"),
     ]

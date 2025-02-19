@@ -1,6 +1,5 @@
 """Run as part of type checking, not at runtime."""
 # pyright: reportUnusedVariable=false
-from typing import List
 from typing_extensions import assert_type
 
 from aioresult import ResultCapture, wait_any, Future, ResultBase
@@ -32,7 +31,7 @@ def check_anyio_protocols(
     send_channel: SendChannelProto[bool] = send
 
 
-async def sample_func(a: int, b: str) -> List[str]:
+async def sample_func(a: int, b: str) -> list[str]:
     return []
 
 
@@ -48,7 +47,7 @@ async def check_resultcapture_start_soon(nursery: NurseryProto) -> None:
     ResultCapture.start_soon(nursery, sample_func, 1)  # type: ignore
     ResultCapture.start_soon(nursery, sample_func, 1, 'two', False)  # type: ignore
     result = ResultCapture.start_soon(nursery, sample_func, 1, 'two')
-    assert_type(result.result(), List[str])
+    assert_type(result.result(), list[str])
 
 
 async def check_is_covariant(nursery: NurseryProto) -> None:
@@ -65,7 +64,7 @@ async def check_is_covariant(nursery: NurseryProto) -> None:
 
     res_one: ResultCapture[int] = await wait_any([res_int])
     res_two: ResultCapture[int] = await wait_any([res_int, res_bool])
-    res_three: ResultCapture[List[str]] = await wait_any([
+    res_three: ResultCapture[list[str]] = await wait_any([
         ResultCapture.start_soon(nursery, sample_func, 1, 'two'),
         ResultCapture.start_soon(nursery, sample_func, 1, 'two')
     ])

@@ -1,8 +1,10 @@
-# Copyright Arthur Tacca 2022 - 2024
+# Copyright Arthur Tacca 2022 - 2025
 # Distributed under the Boost Software License, Version 1.0.
 # See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt
 
-from typing import Any, Awaitable, Callable, Generic, Optional, Tuple, TypeVar, cast
+
+from collections.abc import Awaitable, Callable
+from typing import Any, Generic, Optional, TypeVar, cast
 
 from typing_extensions import TypeVarTuple, Unpack
 
@@ -53,7 +55,7 @@ class TaskNotDoneException(Exception):
         1-tuple of the :class:`ResultCapture` or :class:`Future` that raised this exception.
 
     """
-    args: Tuple['ResultBase[object]']
+    args: tuple['ResultBase[object]']
 
 
 class TaskFailedException(Exception):
@@ -307,7 +309,7 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
         return self._routine
 
     @property
-    def args(self) -> Tuple[object, ...]:
+    def args(self) -> tuple[object, ...]:
         """The arguments passed to the routine whose result will be captured. This is the ``args``
         argument that was passed to the constructor or :meth:`start_soon()`."""
         return self._args
@@ -319,7 +321,7 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
         routine: Callable[..., Awaitable[ResultT]],
         *args: Any,
         start_nursery: Optional[Nursery] = None,
-    ) -> Tuple['ResultCapture[Any]', 'ResultCapture[ResultT]']:
+    ) -> tuple['ResultCapture[Any]', 'ResultCapture[ResultT]']:
         """Captures both the startup and completion result of a task.
 
         The first return value represents whether the task has finished starting yet (i.e., whether it

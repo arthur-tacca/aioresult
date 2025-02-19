@@ -7,14 +7,14 @@
 The reason for defining these, rather than just using anyio (which already supports both Trio and
 wrappers for asyncio) is to allow use of aioresult with Trio even when anyio is not installed.
 """
-from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Protocol, TypeVar, Union, TYPE_CHECKING, cast,
-)
+from collections.abc import Awaitable, Callable
+from contextlib import AbstractAsyncContextManager
+import sys
+from typing import Any, Protocol, TypeVar, Union, TYPE_CHECKING, cast
 from typing_extensions import TypeVarTuple, Unpack
 
 import asyncio
 import sniffio
-import sys
 
 
 RetT = TypeVar("RetT")
@@ -100,7 +100,7 @@ def create_event() -> Event:
         raise RuntimeError(f"Unknown async library {sniffed}")
 
 
-def open_nursery() -> AsyncContextManager[Nursery]:
+def open_nursery() -> AbstractAsyncContextManager[Nursery]:
     """Opens a Trio Nursery or anyio TaskGroup."""
     sniffed = sniffio.current_async_library()
     if sniffed == "trio":
