@@ -9,6 +9,9 @@ aioresult 1.1 (2025-??-??)
 
 - Add type hints (to the maximum extent reasonably possible), courtesy of TeamSpen210.
 
+- Lazily construct the internal ``Event``, so that ``ResultCapture`` objects can be constructed
+  before the event loop runs (e.g., at global module scope).
+
 aioresult 1.0 (2024-02-08)
 --------------------------
 

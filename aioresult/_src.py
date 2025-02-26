@@ -99,7 +99,7 @@ class ResultBase(Generic[ResultT_co]):
         relevant interface for retrieving a result.
     """
     def __init__(self) -> None:
-        self._done_event = create_event()
+        self._done_event: Optional[EventLike] = None
         self._result: ResultT_co = _UNSET
         self._exception: Optional[BaseException] = None
 
@@ -111,11 +111,10 @@ class ResultBase(Generic[ResultT_co]):
           :meth:`wait_done` to check or wait for completion to avoid this exception.
         :raise TaskFailedException: If the task failed with an exception; see `Exception handling`_.
         """
-        if not self._done_event.is_set():
-            raise TaskNotDoneException(self)
         if self._exception is not None:
             raise TaskFailedException(self) from self._exception
-        assert self._result is not _UNSET
+        if self._result is _UNSET:
+            raise TaskNotDoneException(self)
         return self._result
 
     def exception(self) -> Optional[BaseException]:
@@ -131,9 +130,8 @@ class ResultBase(Generic[ResultT_co]):
             :class:`TaskFailedException` as raised by :meth:`result`.
         :return None: If the task completed by returning a value.
         :raise TaskNotDoneException: If the task is not done yet.
-
         """
-        if not self._done_event.is_set():
+        if self._result is _UNSET and self._exception is None:
             raise TaskNotDoneException(self)
         return self._exception
 
@@ -142,7 +140,7 @@ class ResultBase(Generic[ResultT_co]):
 
         :return bool: ``True`` if the task is done; ``False`` otherwise.
         """
-        return self._done_event.is_set()
+        return not (self._result is _UNSET and self._exception is None)
 
     async def wait_done(self) -> None:
         """Waits until the task is done.
@@ -165,6 +163,11 @@ class ResultBase(Generic[ResultT_co]):
             :class:`asyncio.Future` instance, where cancellations propagate directly. See
             `Exception handling`_ for more information.
         """
+        if self._done_event is None:
+            self._done_event = create_event()
+            if not (self._result is _UNSET and self._exception is None):
+                # Task is done. We create an Event rather than just return so this is a checkpoint.
+                self._done_event.set()
         await self._done_event.wait()
 
     def _set_result(self, result: object) -> None:
@@ -173,17 +176,19 @@ class ResultBase(Generic[ResultT_co]):
         This is type-unsafe, since we're modifying it but ResultT is covariant. The caller needs to
         ensure these match.
         """
-        if self._done_event.is_set():
+        if not (self._result is _UNSET and self._exception is None):
             raise FutureSetAgainException(self)
         self._result = cast(ResultT_co, result)
-        self._done_event.set()
+        if self._done_event is not None:
+            self._done_event.set()
 
     def _set_exception(self, exception: BaseException) -> None:
         """Protected implementation of Future.set_exception(), also used in ResultCapture.run()."""
-        if self._done_event.is_set():
+        if not (self._result is _UNSET and self._exception is None):
             raise FutureSetAgainException(self)
         self._exception = exception
-        self._done_event.set()
+        if self._done_event is not None:
+            self._done_event.set()
 
 
 # Invariant, because set_result is public.
