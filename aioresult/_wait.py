@@ -19,6 +19,7 @@ async def wait_all(results: Iterable[ResultBase[object]]) -> None:
     immediately if the task is already done.)
 
     :param results: The results to wait for.
+    :type results: typing.Iterable[ResultBase[object]]
     """
     for r in results:
         await r.wait_done()
@@ -31,8 +32,12 @@ async def wait_any(results: Iterable[ResultBaseT]) -> ResultBaseT:
     actually completed (i.e., :meth:`ResultBase.is_done()` could return ``True`` for more than one
     of them).
 
-    :param results: The :class:`ResultBase` objects to wait for.
-    :return: One of the objects in ``result``.
+    :typeparam ResultBaseT: A subtype of :class:`ResultBase`. The effect of this type parameter is
+        just that the result type of this function is whatever is common to the types in the
+        parameter.
+    :param results: The result objects to wait for.
+    :type results: typing.Iterable[ResultBaseT]
+    :return ResultBaseT: One of the objects in ``results``.
     :raise RuntimeError: If ``results`` is empty.
     """
     first_result: Optional[ResultBaseT] = None
@@ -56,7 +61,7 @@ async def wait_any(results: Iterable[ResultBaseT]) -> ResultBaseT:
 
 async def results_to_channel(
     results: Iterable[ResultBaseT],
-    channel: SendChannel[ResultBaseT],
+    channel: SendChannelLike[ResultBaseT],
     close_on_complete: bool = True,
 ) -> None:
     """Waits for :class:`ResultBase` tasks to complete, and sends them to an async channel.
@@ -66,14 +71,21 @@ async def results_to_channel(
     async tasks, the ordering is not guaranteed for tasks that finish at very similar times.
 
     This function does not return until all tasks in ``results`` have completed, so it would
-    normally be used by being passed to :meth:`trio.Nursery.start_soon()`, rather than being
-    directly awaited in the caller.
+    normally be used by being passed to :meth:`trio.Nursery.start_soon()` rather than being directly
+    awaited in the caller.
 
+    :typeparam ResultBaseT: A subtype of :class:`ResultBase`. The effect of this type parameter is
+        just that, if you have used a type parameter for the send channel, then it should be a base
+        of (or the same as) the types in the ``results`` parameter.
     :param results: The :class:`ResultBase` objects to send to the channel.
+    :type results: typing.Iterable[ResultBaseT]
     :param channel: The send end of the channel to send to.
+    :type channel: trio.MemorySendChannel[ResultBaseT] |
+        anyio.streams.memory.MemoryObjectSendStream[ResultBaseT]
     :param close_on_complete: If ``True`` (the default), the channel will be closed when the
         function completes. This means that iterating over the receive end of the channel with
         ``async for`` will complete once all results have been returned.
+    :type close_on_complete: bool
 
     .. warning::
         If ``close_on_complete`` is True and this routine is cancelled then the channel is still

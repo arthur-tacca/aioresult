@@ -22,21 +22,19 @@ import sys
 # So autodoc can import our package
 sys.path.insert(0, os.path.abspath('../..'))
 
-# Set an attribute, so aioresult._aio knows that we're building docs.
-sys.building_aioresult_docs = True
-
 # Warn about all references to unknown targets
 nitpicky = True
 # Except for these ones, which we expect to point to unknown targets:
 nitpick_ignore = [
-    # Format is ("sphinx reference type", "string"), e.g.:
-    ("py:obj", "bytes-like"),
-    ("py:class", "aioresult._src.ResultT"),
-    ("py:class", "aioresult._wait.ResultBaseT"),
     ("py:obj", "aioresult._src.ResultT"),
-    ("py:class", "ArgsT"),
+    ("py:obj", "aioresult._src.ResultT_co"),
+    ("py:class", "ResultT"),
+    ("py:class", "ResultT_co"),
+    ("py:class", "ResultBaseT"),
+    ("py:class", "*ArgsT"),
 ]
 autodoc_inherit_docstrings = False
+autodoc_typehints = "none"
 default_role = "obj"
 
 # -- General configuration ------------------------------------------------
@@ -64,12 +62,6 @@ autodoc_member_order = "bysource"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = []
-
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'index'
@@ -107,92 +99,66 @@ pygments_style = 'sphinx'
 # The default language for :: blocks
 highlight_language = 'python3'
 
-# Fold return type into the "Returns:" section, rather than making
-# a separate "Return type:" section
-napoleon_use_rtype = False
-
 
 # -- Options for HTML output ----------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-#html_theme = 'alabaster'
-
-# We have to set this ourselves, not only because it's useful for local
-# testing, but also because if we don't then RTD will throw away our
-# html_theme_options.
-import sphinx_rtd_theme
+# The theme to use for HTML and HTML Help pages.
 html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {
-    "navigation_depth": 2,
-    "collapse_navigation": False
+    "navigation_depth": 3
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path = ['_static']
+
+# Custom style sheet to lay out function parameters better on mobile. See:
+# https://stackoverflow.com/questions/79114648/
+html_css_files = [
+    'custom.css',
+]
 
 
-# -- Options for HTMLHelp output ------------------------------------------
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = 'aioresultdoc'
-
-
-# -- Options for LaTeX output ---------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    #
-    # 'papersize': 'letterpaper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    #
-    # 'pointsize': '10pt',
-
-    # Additional stuff for the LaTeX preamble.
-    #
-    # 'preamble': '',
-
-    # Latex figure (float) alignment
-    #
-    # 'figure_align': 'htbp',
+# Print the type parameters for generic functions and classes. This is a workaround for lack of
+# support in autodoc that requires listing every specific class and function.
+# https://github.com/sphinx-doc/sphinx/issues/10568#issuecomment-2413039360
+type_parameters = {
+    "aioresult.Future": "ResultT",
+    "aioresult.ResultBase": "ResultT_co",
+    "aioresult.ResultCapture": "ResultT_co",
+    # Probably too confusing to include type parameters in function signatures
+    # "aioresult.ResultCapture.start_soon": "ResultT, *ArgsT",
+    # "aioresult.ResultCapture.capture_start_and_done_results": "ResultT",
+    # "aioresult.wait_any": "ResultBaseT: ResultBase",
+    # "aioresult.results_to_channel": "ResultBaseT: ResultBase",
 }
 
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, 'aioresult.tex', 'aioresult Documentation',
-     author, 'manual'),
-]
+def process_signature(app, what, name, obj, options, signature, return_annotation):
+    if name in type_parameters:
+        signature = "[" + type_parameters[name] + "]" + (signature or "")
+    return signature, return_annotation
+
+def setup(app):
+    app.connect("autodoc-process-signature", process_signature)
 
 
-# -- Options for manual page output ---------------------------------------
+# Allow using `:return TypeName: Description` with type name on same line of output
+# https://github.com/orgs/sphinx-doc/discussions/13125#discussioncomment-11219198
+from sphinx.domains.python import PyObject, PyGroupedField
+for i, f in enumerate(PyObject.doc_field_types):
+    if f.name == "returnvalue":
+        PyObject.doc_field_types[i] = PyGroupedField(
+            f.name, label=f.label, names=f.names, rolename="class", can_collapse=True
+        )
 
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'aioresult', 'aioresult Documentation',
-     [author], 1)
-]
 
-
-# -- Options for Texinfo output -------------------------------------------
-
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [
-    (master_doc, 'aioresult', 'aioresult Documentation',
-     author, 'aioresult', 'Capture the result of a Trio or anyio task',
-     'Miscellaneous'),
-]
+# Also allow documenting type parameters.
+PyObject.doc_field_types.append(PyGroupedField(
+    "typeparam", label="Type Parameters", names=("typeparam",), rolename="class", can_collapse=True
+))

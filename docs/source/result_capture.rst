@@ -61,6 +61,39 @@ it finished with an exception::
     print("results:", *[f"{i} -> {r.result()}," for i, r in results.items()])
 
 
+How it works
+------------
+
+The implementation of :class:`ResultCapture` is very simple. Rather than running your routine
+directly in a nursery, you instead run :meth:`ResultCapture.run()` in the nursery, which runs the
+routine and saves the result (or exception) in a member variable::
+
+    # ResultCapture.run() method
+    def run(self, **kwargs):
+        try:
+            self._result = await self._fn(*self._args, **kwargs)
+        except BaseException as e:
+            self._exception = e
+            raise
+        finally:
+            self._done_event.set()
+
+The actual implementation looks slightly different, but that's just so it can share some code with
+the :class:`Future` class, and so that it can avoid calling ``raise`` if
+``suppress_exception=True``. It still fundamentally works like this.
+
+The typical way to run this is to start it in a nursery with the :meth:`ResultCapture.start_soon()`
+class method. This is even more simple! It just constructs an instance and then runs it in the
+nursery::
+
+    # ResultCapture.start_soon() class method
+    @classmethod
+    def start_soon(cls: type, nursery: Nursery, routine, *args):
+        task = cls(routine, *args)  # cls is ResultCapture, so this constructs an instance
+        nursery.start_soon(task.run)
+        return task
+
+
 .. _exception:
 
 Exception handling
@@ -161,21 +194,12 @@ raised by :meth:`ResultBase.result()` is wrapped in a :class:`TaskFailedExceptio
 Motivation
 ^^^^^^^^^^
 
-A common requirement for a task-like class is that it automatically handles cancellation when there
-are complex interdependencies between tasks and some fail (by raising an exception or by explicit
-cancellation). For example, if tasks A and B are waiting on a common task C, then perhaps cancelling
-A (only) should allow B and C to complete, whereas also cancelling B should automatically cancel C
-too so that it does not pointlessly continue when its result it not needed. A deliberate design
-decision of aioresult is that it does not attempt to solve this particular problem. Its goal is
-simply to capture the result of a task, and leaves cancellation and exception semantics unchanged.
-This is why the main class is called "ResultCapture" rather than "Task".
-
-On the other hand, some other libraries, such as
+Some related libraries, such as
 `Outcome <https://outcome.readthedocs.io/en/latest/>`__ and
-`trio-future <https://github.com/danielhfrank/trio-future>`__, take a much lower-level approach:
-they consume any exception thrown by the task and reraise it when the result is retrieved. This
-gives the calling code more control: it can choose at what point to retrieve the result, and
-therefore at what point the exception is thrown. However, it has some disadvantages:
+`trio-future <https://github.com/danielhfrank/trio-future>`__, consume any exception thrown by the
+task and reraise it when the result is retrieved. This gives the calling code more control: it can
+choose at what point to retrieve the result, and therefore at what point the exception is thrown.
+However, it has some disadvantages:
 
 * The calling code must ensure the exception is always retrieved, otherwise the exception is
   silently lost. That would be particularly problematic if it is an injected exception such as
@@ -197,48 +221,75 @@ in its context (because it's in the original place it was raised) and you are fr
 result once, many times, or not at all.
 
 
-How it works
-------------
+.. _type_hints:
 
-The implementation of :class:`ResultCapture` is very simple. Rather than running your routine
-directly in a nursery, you instead run :meth:`ResultCapture.run()` in the nursery, which runs the
-routine and saves the result (or exception) in a member variable::
+Type hints
+----------
 
-    # ResultCapture.run() method
-    def run(self, **kwargs):
-        try:
-            self._result = await self._fn(*self._args, **kwargs)
-        except BaseException as e:
-            self._exception = e
-            raise
-        finally:
-            self._done_event.set()
+The classes and functions in aioresult include type hints. These allow IDEs and static type
+checkers to detect potential errors before your program is run; see the `introduction in the mypy
+docs <https://mypy.readthedocs.io/en/stable/getting_started.html>`_ for more information on Python
+type hints in general. For example, a type checker would find the two errors in the following
+code::
 
-The actual implementation looks slightly different, but that's just so it can share some code with
-the :class:`Future` class, and so that it can avoid calling ``raise`` if
-``suppress_exception=True``. It still fundamentally works like this.
+    async def double_int(x: int) -> int:
+        await trio.sleep(1)
+        return x * 2
 
-The typical way to run this is to start it in a nursery with the :meth:`ResultCapture.start_soon()`
-class method. This is even more simple! It just constructs an instance and then runs it in the
-nursery::
+    async with trio.open_nursery() as n:
+        # Error! Parameter should be int not str
+        rc = ResultCapture.start_soon(n, double_int, "seven")
+    # Error! Assigning int into str variable
+    x: str = rc.result()
 
-    @classmethod
-    def start_soon(cls: type, nursery: Nursery, routine, *args):
-        task = cls(routine, *args)  # cls is ResultCapture, so this constructs an instance
-        nursery.start_soon(task.run)
-        return task
+The :class:`ResultCapture`, :class:`Future` and :class:`ResultBase` classes have a type parameter,
+which represents the type of value being captured. This allows you to use these classes in type
+hints for variables and function parameters in your own code. For example::
 
-It is not strictly necessary to use the :meth:`ResultCapture.start_soon()` function; if you need
-more control about how the routine is run then it is reasonable to instantiate
-:class:`ResultCapture` explicitly in your code and arrange for the :meth:`ResultCapture.run()`
-method to be called. For example, this is useful when you need to use :meth:`trio.Nursery.start()`
-rather than :meth:`trio.Nursery.start_soon()`; see the next section for details.
+    async def do_something(rc: ResultCapture[str]): ...
+    # Error! Assigning ResultCapture[int] into ResultCapture[str]
+    await do_something(ResultCapture.start_soon(n, double_int, 7))
+
+You do not need to specify the type parameter when using :func:`ResultCapture.start_soon()`. For
+that function, the type paremeter of :class:`ResultCapture` is inferred from the return type of the
+function passed to it.
+
+The type parameter of :class:`ResultCapture` and :class:`ResultBase` is `covariant
+<https://typing.readthedocs.io/en/latest/spec/generics.html#variance>`_; this means that you can
+assign to a variable where the parameter is a looser type. For example, if ``Animal`` is a base
+class with derived classes ``Cat`` and ``Dog``, then you would see this behaviour::
+
+    rc_dog = ResultCapture.start_soon(n, get_dog)  # Inferred to be ResultCapture[Dog]
+    rc_animal: ResultCapture[Animal] = rc_dog  # This is OK
+    rc_cat: ResultCapture[Cat] = rc_animal  # This causes an error
+
+The :class:`Future` class does not behave this way because, if it did, you would be able to use the
+:func:`Future.set_result()` method on the looser type to put the wrong type of value in (e.g., if
+you have a ``Future[Dog]`` and were able to use it as a ``Future[Animal]`` then you could use that
+to put a ``Cat`` in it). You can always put it into a :class:`ResultBase` variable if you need this
+sort of behaviour (e.g., you can assign a ``Future[Dog]`` into a ``ResultBase[Animal]`` variable).
+
+Not all types can be perfectly type checked in Python. In aioresult, there are two main limitations
+of the type checking:
+
+* The function given to :class:`ResultCapture` is only checked for compatibility with the arguments
+  that you give if you use :func:`ResultCapture.start_soon()`. If you manually construct
+  :class:`ResultCapture` and call :func:`ResultCapture.run()`, or if you use
+  :func:`ResultCapture.capture_start_and_done_results()`, the parameter types are not checked::
+
+      rc = ResultCapture[int](double_int, "seven")  # Oops, no error
+
+* The :attr:`ResultCapture.args` property does not remember the type of the arguments passed in.
+  Its type hint is simply a tuple of :class:`typing.Any`::
+
+      rc = ResultCapture.start_soon(n, double_int, 7)
+      a: tuple[str, float] = rc.args  # Oops, no error
 
 
 .. _starting:
 
-Wait for a task to finish starting
-----------------------------------
+Waiting for a task to finish starting
+-------------------------------------
 
 Trio and anyio support waiting until a task has finished starting with :meth:`trio.Nursery.start()`
 and :meth:`anyio.abc.TaskGroup.start()`. For example, a routine that supports this could look like
@@ -281,7 +332,11 @@ than :meth:`trio.Nursery.start_soon()`::
         print("Start value:", start_value)
     print("Done result:", rc.result())
 
-**For most usages, the code above is exactly what you need.**
+.. note::
+    For most usages, you just need code like the snippet above: construct :class:`ResultCapture`
+    explicitly and its :meth:`ResultCapture.run()` method to :meth:`trio.Nursery.start()`. To some
+    extent, the :meth:`ResultCapture.capture_start_and_done_results()` function described below was
+    written just to show it could be done.
 
 In some rare cases, it may be useful to run the startup code for several routines concurrently. In
 that case, as always, the solution is to use a nursery, which this time executes the startup code.
@@ -316,19 +371,12 @@ although it is awkward enough that it is useful not to have to write it out ever
 Reference
 ---------
 
-The two main classes in aioresult, :class:`ResultCapture` and :class:`Future`, have almost
-identical interfaces: they both allow waiting for and retrieving a value. That interface is
-contained in the base class, :class:`ResultBase`:
-
-.. note::
-    If you are returning a :class:`ResultCapture` or :class:`Future` from a function then you may
-    wish to document the return type as just :class:`ResultBase` because that has all the methods
-    relevant for retrieving a result.
-
 .. autoclass:: ResultBase
     :members:
 
-``ResultBase`` makes uses of the following exception classes:
+.. autoclass:: ResultCapture
+    :members:
+    :show-inheritance:
 
 .. autoexception:: TaskFailedException
     :show-inheritance:
@@ -337,9 +385,3 @@ contained in the base class, :class:`ResultBase`:
 .. autoexception:: TaskNotDoneException
     :show-inheritance:
     :members:
-
-The main class in aioresult is :class:`ResultCapture`:
-
-.. autoclass:: ResultCapture
-    :members:
-    :show-inheritance:

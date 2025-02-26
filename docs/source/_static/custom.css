@@ -1,0 +1,6 @@
+@media screen and (max-width:1024px) {
+  html.writer-html5 .rst-content dl.field-list { display: block }
+}
+html.writer-html5 .rst-content dl.field-list > dt { padding-left: 0px }
+html.writer-html5 .rst-content { overflow-wrap: break-word }
+html.writer-html5 .rst-content dt.sig { display: block !important }

@@ -85,8 +85,18 @@ class TaskFailedException(Exception):
 
 # This is covariant even though result is technically mutable.
 class ResultBase(Generic[ResultT_co]):
-    """Base class for :class:`ResultCapture` and :class:`Future`. Has methods for checking if the
-    task is done and fetching its result.
+    """Base class for :class:`ResultCapture` and :class:`Future`.
+
+    The two main classes in aioresult, :class:`ResultCapture` and :class:`Future`, have almost
+    identical interfaces: they both allow waiting for and retrieving a value. That interface is
+    contained in this base class.
+
+    :typeparam ResultT_co: Type of the value returned from :meth:`result()`. See :ref:`type_hints`.
+
+    .. note::
+        If you are returning a :class:`ResultCapture` or :class:`Future` from a function then you
+        may wish to document the return type as just :class:`ResultBase` because that has all the
+        relevant interface for retrieving a result.
     """
     def __init__(self) -> None:
         self._done_event = create_event()
@@ -96,7 +106,7 @@ class ResultBase(Generic[ResultT_co]):
     def result(self) -> ResultT_co:
         """Returns the captured result of the task.
 
-        :return: The value returned by the task.
+        :return ResultT_co: The value returned by the task.
         :raise TaskNotDoneException: If the task is not done yet; use :meth:`is_done` or
           :meth:`wait_done` to check or wait for completion to avoid this exception.
         :raise TaskFailedException: If the task failed with an exception; see `Exception handling`_.
@@ -116,12 +126,10 @@ class ResultBase(Generic[ResultT_co]):
         of :class:`ResultCapture` objects.
 
 
-        :return:
-          * The exception raised by the task, if it completed by raising an exception. Note
-            that it is the original exception returned, not a :class:`TaskFailedException`
-            as raised by :meth:`result`.
-          * If the task completed by returning a value then this method returns ``None``.
-
+        :return BaseException: The exception raised by the task, if it completed by raising an
+            exception. Note that it is the original exception returned, not a
+            :class:`TaskFailedException` as raised by :meth:`result`.
+        :return None: If the task completed by returning a value.
         :raise TaskNotDoneException: If the task is not done yet.
 
         """
@@ -130,8 +138,9 @@ class ResultBase(Generic[ResultT_co]):
         return self._exception
 
     def is_done(self) -> bool:
-        """Returns ``True`` if the task is done i.e. the result (or an exception) is captured.
-        Returns ``False`` otherwise.
+        """Returns whether the task is done, i.e., the result (or an exception) is captured.
+
+        :return bool: ``True`` if the task is done; ``False`` otherwise.
         """
         return self._done_event.is_set()
 
@@ -145,6 +154,8 @@ class ResultBase(Generic[ResultT_co]):
         library code and you want to start a routine in a user supplied nursery but wait for it in
         some other context. Typically, though, it is better design to wait for the task's nursery to
         complete. Consider a nursery-based approach before using this method.
+
+        :return None: To access the result use :meth:`result()`.
 
         .. note::
             If the underlying routine raises an exception (which includes the case that it is
@@ -176,8 +187,10 @@ class ResultBase(Generic[ResultT_co]):
 
 
 # Invariant, because set_result is public.
-class Future(ResultBase[ResultT], Generic[ResultT]):
+class Future(ResultBase[ResultT]):
     """Stores a result or exception that is explicitly set by the caller.
+
+    :typeparam ResultT: Type of the value stored; see :ref:`type_hints`.
 
     .. note:: :class:`Future` inherits most of its methods from its base class :class:`ResultBase`;
        see the documentation for that class for the inherited methods.
@@ -190,6 +203,7 @@ class Future(ResultBase[ResultT], Generic[ResultT]):
         passed in.
 
         :param result: The result value to be stored.
+        :type result: ResultT
         :raise FutureSetAgainException: If the result has already been set with :meth:`set_result()`
             or :meth:`set_exception()`.
         """
@@ -205,25 +219,29 @@ class Future(ResultBase[ResultT], Generic[ResultT]):
         :class:`ResultCapture`; see :ref:`Exception handling <exception>`.
 
         :param exception: The exception to be stored.
+        :type exception: BaseException
         :raise FutureSetAgainException: If the result has already been set with :meth:`set_result()`
             or :meth:`set_exception()`.
         """
         self._set_exception(exception)
 
 
-class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
+class ResultCapture(ResultBase[ResultT_co]):
     """Captures the result of a task for later access.
 
     Most usually, an instance is created with the :meth:`start_soon()` class method. However, it is
     possible to instantiate directly, in which case you will need to arrange for the :meth:`run()`
     method to be called.
 
+    :typeparam ResultT_co: Type of the value returned from tbe task. See :ref:`type_hints`.
     :param routine: An async callable.
+    :type routine: typing.Callable[..., typing.Awaitable[ResultT_co]]
     :param args: Positional arguments for ``routine``.
     :param suppress_exception: If ``True``, exceptions derived from :class:`Exception` (not those
         directly derived from :class:`BaseException` will be caught internally rather than allowed
         to escape into the enclosing nursery. If ``False`` (the default), all exceptions will be
         allowed to escape into the enclosing context.
+    :type suppress_exception: bool
 
     .. note:: :class:`ResultCapture` inherits most of its methods from its base class
       :class:`ResultBase`; see the documentation for that class for the inherited methods.
@@ -232,7 +250,7 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
     @classmethod
     def start_soon(
         cls,
-        nursery: Nursery,
+        nursery: NurseryLike,
         routine: Callable[[Unpack[ArgsT]], Awaitable[ResultT]],
         *args: Unpack[ArgsT],
         suppress_exception: bool = False,
@@ -243,15 +261,22 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
         starts the routine by calling ``nursery.start_soon(rc.run)``, then returns the new object.
         It's literally three lines long! But it's the preferred way to create an instance.
 
-        :param nursery: A :class:`trio.Nursery` or :class:`anyio.abc.TaskGroup` to run the routine.
+        :typeparam ResultT: The return type of ``routine``, which will be captured in the returned
+            ``ResultCapture``.
+        :typeparam \\*ArgsT: The type of the arguments to ``routine``.
+        :param nursery: A nursery to run the routine.
+        :type nursery: trio.Nursery | anyio.abc.TaskGroup
         :param routine: An async callable.
+        :type routine: typing.Callable[[\\*ArgsT], typing.Awaitable[ResultT]]
         :param args: Positional arguments for ``routine``. If you want to pass keyword arguments,
             use :func:`functools.partial`.
+        :type args: \\*ArgsT
         :param suppress_exception: If ``True``, exceptions derived from :class:`Exception` (not
             those directly derived from :class:`BaseException` will be caught internally rather than
             allowed to escape into the enclosing nursery. If ``False`` (the default), all exceptions
             will be allowed to escape into the enclosing context.
-        :return: A new :class:`ResultCapture` instance representing the result of the given routine.
+        :type suppress_exception: bool
+        :return ResultCapture[ResultT]: A new instance representing the result of the given routine.
         """
         rc = cls(routine, *args, suppress_exception=suppress_exception)  # type: ignore
         nursery.start_soon(rc.run)
@@ -280,11 +305,10 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
         method in situations where extra control is needed.
 
         :param kwargs: Keyword arguments to pass to the routine. This exists mainly to support usage
-            with the task start protocol (see `Wait for a task to finish starting`_). If you want to
-            pass arguments to the routine then pass them as positional arguments to
+            with the task start protocol (see `Waiting for a task to finish starting`_). If you want
+            to pass arguments to the routine then pass them as positional arguments to
             :meth:`start_soon()` or use :func:`functools.partial`.
-        :return: Always `None`. To access the return value of the routine, use
-            :meth:`ResultBase.result()`.
+        :return None: To access the return value of the routine, use :meth:`ResultBase.result()`.
         :raise BaseException: Whatever exception is raised by the routine.
 
         .. warning::
@@ -309,7 +333,7 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
         return self._routine
 
     @property
-    def args(self) -> tuple[object, ...]:
+    def args(self) -> tuple[Any, ...]:
         """The arguments passed to the routine whose result will be captured. This is the ``args``
         argument that was passed to the constructor or :meth:`start_soon()`."""
         return self._args
@@ -317,10 +341,10 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
     @classmethod
     def capture_start_and_done_results(
         cls,
-        run_nursery: Nursery,
+        run_nursery: NurseryLike,
         routine: Callable[..., Awaitable[ResultT]],
         *args: Any,
-        start_nursery: Optional[Nursery] = None,
+        start_nursery: Optional[NurseryLike] = None,
     ) -> tuple['ResultCapture[Any]', 'ResultCapture[ResultT]']:
         """Captures both the startup and completion result of a task.
 
@@ -331,13 +355,16 @@ class ResultCapture(ResultBase[ResultT_co], Generic[ResultT_co]):
         or exception).
 
         :param run_nursery: The nursery to run the routine once it has finished starting.
+        :type nursery: trio.Nursery | anyio.abc.TaskGroup
         :param routine: An async callable.
+        :type routine: typing.Callable[..., typing.Awaitable[ResultT]]
         :param args: Positional arguments for ``routine``. If you want to pass keyword arguments,
             use :func:`functools.partial`.
-        :param start_nursery: The nursery to run the routine until it has finished starting. If this is
-            omitted then ``run_nursery`` is used.
-        :return: A tuple ``(start_result, done_result)`` representing the value returned from the
-            routine's startup and its completion.
+        :param start_nursery: The nursery to run the routine until it has finished starting. If this
+            is omitted then ``run_nursery`` is used.
+        :type start_nursery: trio.Nursery | anyio.abc.TaskGroup | None
+        :return tuple[ResultCapture[Any], ResultCapture[ResultT]]: ``(start_result, done_result)``
+            representing the value returned from the routine's startup and its completion.
 
         .. note:: The semantics are a little fiddly if the routine raises an exception before it
             completes startup (i.e., before it calls ``task_status.started()``):

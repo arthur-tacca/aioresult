@@ -50,9 +50,6 @@ Reference
     :show-inheritance:
     :members:
 
-
-:class:`Future` makes use of the following exception class:
-
 .. autoexception:: FutureSetAgainException
     :show-inheritance:
     :members:

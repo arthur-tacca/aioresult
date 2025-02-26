@@ -16,10 +16,10 @@ import sniffio
 import trio
 
 from aioresult import *
-from aioresult._aio import Nursery as Nursery, SendChannel
+from aioresult._aio import NurseryLike, SendChannelLike
 
 
-OpenNursery: TypeAlias = Callable[[], AbstractAsyncContextManager[Nursery]]
+OpenNursery: TypeAlias = Callable[[], AbstractAsyncContextManager[NurseryLike]]
 
 
 # We run each test three times:
@@ -375,7 +375,7 @@ async def test_to_channel(open_nursery: OpenNursery, resultcapture_test_mode: st
     async with open_nursery() as n:
         results = [ResultCapture.start_soon(n, sleep_and_return, i) for i in range(10)]
 
-        send_channel: SendChannel[ResultBase[float]]
+        send_channel: SendChannelLike[ResultBase[float]]
         # We only iterate, don't need a full protocol for this.
         receive_channel: AsyncIterable[ResultBase[float]]
         if resultcapture_test_mode == "trio":
