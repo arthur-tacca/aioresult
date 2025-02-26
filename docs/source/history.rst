@@ -4,7 +4,7 @@ Release history
 .. currentmodule:: aioresult
 
 
-aioresult 1.1 (2025-??-??)
+aioresult 1.1 (2025-02-26)
 --------------------------
 
 - Add type hints (to the maximum extent reasonably possible), courtesy of TeamSpen210.
