@@ -22,12 +22,19 @@ import sys
 # So autodoc can import our package
 sys.path.insert(0, os.path.abspath('../..'))
 
+# Set an attribute, so aioresult._aio knows that we're building docs.
+sys.building_aioresult_docs = True
+
 # Warn about all references to unknown targets
 nitpicky = True
 # Except for these ones, which we expect to point to unknown targets:
 nitpick_ignore = [
     # Format is ("sphinx reference type", "string"), e.g.:
     ("py:obj", "bytes-like"),
+    ("py:class", "aioresult._src.ResultT"),
+    ("py:class", "aioresult._wait.ResultBaseT"),
+    ("py:obj", "aioresult._src.ResultT"),
+    ("py:class", "ArgsT"),
 ]
 autodoc_inherit_docstrings = False
 default_role = "obj"
