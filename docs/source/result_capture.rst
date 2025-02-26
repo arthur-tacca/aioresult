@@ -49,8 +49,8 @@ list, for example you could use a dictionary::
         results = {i: ResultCapture.start_soon(n, foo, i) for i in range(10)}
     print("results:", *[f"{i} -> {r.result()}," for i, r in results.items()])
 
-It is also possible to check whether the task is done, wait for it to be done, and checker whether
-it finished with an exception::
+It is also possible to check whether the task is done, wait for it to be done, and check whether it
+finished with an exception::
 
     async with trio.open_nursery() as n:
         result1 = ResultCapture.start_soon(n, foo, 1)
@@ -366,6 +366,23 @@ although it is awkward enough that it is useful not to have to write it out ever
         start_result = cls(run_nursery.start, done_result.run)  # As does this
         start_nursery.start_soon(start_result.run)
         return start_result, done_result
+
+
+String representation
+---------------------
+
+Converting a :class:`ResultBase` object to a string shows whether it completed, and if so its
+result::
+
+    rc = ResultCapture.start_soon(nursery, foo, "arg1", 2)
+    print(rc)  # prints:  ResultCapture(is_done=False)
+    # Later, might print: ResultCapture(result=3)
+    # Or it might print:  ResultCapture(exception=KeyError(3))
+
+For :class:`ResultCapture` objects, passing ``#`` as the format string will also include the
+routine name and its arguments in the string::
+
+    print(f"{rc:#}")  # prints: ResultCapture(routine=foo, args=('arg1', 2), is_done=False)
 
 
 Reference

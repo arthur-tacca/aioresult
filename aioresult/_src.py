@@ -190,6 +190,24 @@ class ResultBase(Generic[ResultT_co]):
         if self._done_event is not None:
             self._done_event.set()
 
+    def _routine_str(self) -> str:
+        return ""  # Overridden in ResultCapture
+
+    def __format__(self, format_spec: str) -> str:
+        if format_spec not in ("", "#"):
+            raise ValueError("ResultBase format must be '' or '#'")
+        routine_str = self._routine_str() if format_spec == "#" else ""
+        if not self.is_done():
+            result_str = "is_done=False"
+        elif self._exception is not None:
+            result_str = "exception=" + repr(self._exception)
+        else:
+            result_str = "result=" + str(self._result)
+        return f"{type(self).__name__}({routine_str}{result_str})"
+
+    def __repr__(self) -> str:
+        return self.__format__("")
+
 
 # Invariant, because set_result is public.
 class Future(ResultBase[ResultT]):
@@ -408,3 +426,7 @@ class ResultCapture(ResultBase[ResultT_co]):
         start_result = cls(run_nursery.start, done_result.run)  # pyright: ignore
         start_nursery.start_soon(start_result.run)
         return start_result, done_result  # type: ignore
+
+    def _routine_str(self) -> str:
+        """Allows the alternative format to include routine and arguments; used in __format__."""
+        return f"routine={self.routine.__qualname__}, args={self.args}, "

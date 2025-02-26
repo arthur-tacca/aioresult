@@ -351,6 +351,20 @@ async def test_future(open_nursery: OpenNursery) -> None:
         fx.result()
 
 
+async def test_str(open_nursery: OpenNursery) -> None:
+    async with open_nursery() as n:
+        rc = ResultCapture.start_soon(n, sleep_and_return, 0.1)
+        assert str(rc) == "ResultCapture(is_done=False)"
+        assert format(rc, "#") == "ResultCapture(routine=sleep_and_return, args=(0.1,), is_done=False)"
+    assert str(rc) == "ResultCapture(result=0.1)"
+
+    f = Future[int]()
+    assert str(f) == "Future(is_done=False)"
+    f.set_exception(KeyError(3))
+    assert str(f) == "Future(exception=KeyError(3))"
+    assert repr(f) == str(f)
+
+
 # -- Tests for wait functions
 
 

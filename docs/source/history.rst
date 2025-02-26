@@ -12,6 +12,8 @@ aioresult 1.1 (2025-??-??)
 - Lazily construct the internal ``Event``, so that ``ResultCapture`` objects can be constructed
   before the event loop runs (e.g., at global module scope).
 
+- Add nice string representation.
+
 aioresult 1.0 (2024-02-08)
 --------------------------
 
