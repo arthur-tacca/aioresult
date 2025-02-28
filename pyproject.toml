@@ -5,6 +5,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.dynamic]
 version = {attr = "aioresult._version.__version__"}
 
+[tool.setuptools]
+include-package-data = true
+
 [project]
 name = "aioresult"
 dynamic = ["version"]
