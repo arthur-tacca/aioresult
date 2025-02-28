@@ -136,7 +136,7 @@ install the ``excetiongroup`` compatibility package, even on newer versions of P
 License
 -------
 
-Copyright Arthur Tacca 2022 - 2024
+Copyright Arthur Tacca 2022 - 2025
 
 Distributed under the Boost Software License, Version 1.0.
 See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt

@@ -3,6 +3,11 @@ Release history
 
 .. currentmodule:: aioresult
 
+aioresult 1.2 (2025-02-28)
+--------------------------
+
+- Add ``py.typed`` marker so that type checkers know that type annotations should be used for type
+  checking.
 
 aioresult 1.1 (2025-02-26)
 --------------------------
