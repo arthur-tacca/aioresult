@@ -42,7 +42,7 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/arthur-tacca/aioresult"
-Documentation = "https://aioresult.readthedocs.io/en/v1.1/overview.html"
+Documentation = "https://aioresult.readthedocs.io/en/v1.2/overview.html"
 
 [project.optional-dependencies]
 docs = ["sphinx>=6.1", "sphinxcontrib-trio", "sphinx_rtd_theme", "trio", "anyio"]

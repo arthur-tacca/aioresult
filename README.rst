@@ -12,10 +12,10 @@ wouldn't recommend using those (see `Trio vs asyncio <https://stackoverflow.com/
 
 * Documentation is on ReadTheDocs:
 
-  * Overview (this page): https://aioresult.readthedocs.io/en/v1.1/overview.html
-  * Capturing a result: https://aioresult.readthedocs.io/en/v1.1/result_capture.html
-  * Future objects: https://aioresult.readthedocs.io/en/v1.1/future.html
-  * Utility functions for waiting: https://aioresult.readthedocs.io/en/v1.1/wait.html
+  * Overview (this page): https://aioresult.readthedocs.io/en/v1.2/overview.html
+  * Capturing a result: https://aioresult.readthedocs.io/en/v1.2/result_capture.html
+  * Future objects: https://aioresult.readthedocs.io/en/v1.2/future.html
+  * Utility functions for waiting: https://aioresult.readthedocs.io/en/v1.2/wait.html
 
 * The package is on PyPI: https://pypi.org/project/aioresult/
 
