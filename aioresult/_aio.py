@@ -7,7 +7,7 @@
 The reason for defining these, rather than just using anyio (which already supports both Trio and
 wrappers for asyncio) is to allow use of aioresult with Trio even when anyio is not installed.
 """
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Coroutine
 from contextlib import AbstractAsyncContextManager
 from typing import Any, Protocol, TypeVar, cast
 from typing_extensions import TypeVarTuple, Unpack
@@ -36,13 +36,20 @@ class NurseryLike(Protocol):
 
     def start_soon(
         self,
-        func: Callable[[Unpack[ArgsT]], Awaitable[object]], /,
+        func: Callable[[Unpack[ArgsT]], Coroutine[Any, Any, object]], /,
         *args: Unpack[ArgsT],
-    ) -> None:
+        name: object = None,
+    ) -> object:
         ...
 
     # This can't be typed yet.
-    async def start(self, func: Callable[..., Awaitable[RetT]], /, *args: object) -> RetT:
+    async def start(
+        self,
+        func: Callable[..., Coroutine[Any, Any, RetT]],
+        /,
+        *args: object,
+        name: object = None,
+    ) -> Any:
         ...
 
 
