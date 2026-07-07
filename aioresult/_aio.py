@@ -16,7 +16,6 @@ import asyncio
 import sniffio
 
 
-RetT = TypeVar("RetT")
 T_contra = TypeVar("T_contra", contravariant=True)
 ArgsT = TypeVarTuple("ArgsT")
 
@@ -45,7 +44,7 @@ class NurseryLike(Protocol):
     # This can't be typed yet.
     async def start(
         self,
-        func: Callable[..., Coroutine[Any, Any, RetT]],
+        func: Callable[..., Coroutine[Any, Any, object]],
         /,
         *args: object,
         name: object = None,
