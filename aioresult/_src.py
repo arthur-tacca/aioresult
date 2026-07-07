@@ -423,7 +423,7 @@ class ResultCapture(ResultBase[ResultT_co]):
         if start_nursery is None:
             start_nursery = run_nursery
         done_result = cls(routine, *args)  # type: ignore
-        start_result = cls(run_nursery.start, done_result.run)  # pyright: ignore
+        start_result = cls(run_nursery.start, done_result.run)
         start_nursery.start_soon(start_result.run)
         return start_result, done_result  # type: ignore
 
