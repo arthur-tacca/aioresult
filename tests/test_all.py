@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterable, Callable
 from contextlib import AbstractAsyncContextManager
-from typing import Any, Generator, Optional
+from typing import Any, Generator, Optional, Union
 from typing_extensions import TypeAlias
 import contextlib
 import sys
@@ -14,6 +14,7 @@ import pytest
 import anyio
 import sniffio
 import trio
+import trio.testing
 
 from aioresult import *
 from aioresult._aio import NurseryLike, SendChannelLike
@@ -32,11 +33,13 @@ def resultcapture_test_mode(request: pytest.FixtureRequest) -> str:
     return request.param
 
 
-# This is how we tell anyio's pytest plugin which backend to use
+# This is how we tell anyio's pytest plugin which backend to use. For the two Trio-backed modes we
+# also pass a MockClock: anyio.sleep() delegates to trio.sleep() on that backend, so autojump makes
+# the sleeps in these tests virtual - instant, and exactly ordered regardless of machine load.
 @pytest.fixture
-def anyio_backend(resultcapture_test_mode: str) -> str:
+def anyio_backend(resultcapture_test_mode: str) -> Union[str, tuple[str, dict[str, Any]]]:
     if "trio" in resultcapture_test_mode:
-        return "trio"
+        return "trio", {"clock": trio.testing.MockClock(autojump_threshold=0)}
     else:
         return "asyncio"
 
@@ -44,7 +47,7 @@ def anyio_backend(resultcapture_test_mode: str) -> str:
 # This is where we pick which function is used to create the nursery. We also pass anyio_backend so
 # that anyio's pytest plugin knows that any test depending on this fixture should be run through it.
 @pytest.fixture
-def open_nursery(anyio_backend: str, resultcapture_test_mode: str) -> OpenNursery:
+def open_nursery(anyio_backend: Any, resultcapture_test_mode: str) -> OpenNursery:
     if resultcapture_test_mode == "trio":
         # Test using Trio's nursery type without anyio's (admittedly very thin) TaskGroup wrapper
         return trio.open_nursery
@@ -74,6 +77,9 @@ def raises_aioresult_exception() -> Generator[None, None, None]:
 # that e.g. a sleep of 1.5 seconds is still running when a sleep of 1 second has just completed.
 # Making this time multiplier smaller will make the tests run more quickly but increase their
 # fragility, potentially causing spurious test failures.
+#
+# For Trio and anyio+Trio this doesn't matter because we use the MockClock to advance time
+# instantly, but it's still an issue for anyio+asyncio.
 #
 # (The tests could be made robust by communicating between the tasks, e.g. with memory channels,
 # so that they only move on when the current test or other tasks have reached certain points. But
@@ -393,9 +399,9 @@ async def test_to_channel(open_nursery: OpenNursery, resultcapture_test_mode: st
         # We only iterate, don't need a full protocol for this.
         receive_channel: AsyncIterable[ResultBase[float]]
         if resultcapture_test_mode == "trio":
-            send_channel, receive_channel = trio.open_memory_channel(1)
+            send_channel, receive_channel = trio.open_memory_channel[ResultBase[float]](1)
         else:
-            send_channel, receive_channel = anyio.create_memory_object_stream(1)
+            send_channel, receive_channel = anyio.create_memory_object_stream[ResultBase[float]](1)
 
         n.start_soon(results_to_channel, results, send_channel)
 

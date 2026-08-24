@@ -12,10 +12,10 @@ wouldn't recommend using those (see `Trio vs asyncio <https://stackoverflow.com/
 
 * Documentation is on ReadTheDocs:
 
-  * Overview (this page): https://aioresult.readthedocs.io/en/v1.2/overview.html
-  * Capturing a result: https://aioresult.readthedocs.io/en/v1.2/result_capture.html
-  * Future objects: https://aioresult.readthedocs.io/en/v1.2/future.html
-  * Utility functions for waiting: https://aioresult.readthedocs.io/en/v1.2/wait.html
+  * Overview (this page): https://aioresult.readthedocs.io/en/v1.3/overview.html
+  * Capturing a result: https://aioresult.readthedocs.io/en/v1.3/result_capture.html
+  * Future objects: https://aioresult.readthedocs.io/en/v1.3/future.html
+  * Utility functions for waiting: https://aioresult.readthedocs.io/en/v1.3/wait.html
 
 * The package is on PyPI: https://pypi.org/project/aioresult/
 
@@ -75,6 +75,10 @@ Install into a suitable virtual environment with ``pip``::
 
     pip install aioresult
 
+or add to your pyproject.toml, e.g. with ``uv``::
+
+    uv add aioresult
+
 aioresult can be used with Trio nurseries::
 
     import trio
@@ -117,26 +121,28 @@ Contributing
 This library is deliberately small and limited in scope, so it is essentially "done" (but you never
 know).
 
-To test any changes, install the test requirements (see the ``pyproject.toml`` file) and run
-``pytest`` in the root of the repository::
+To test any changes, use uv to install the dev dependencies (``uv sync``) and run ``pytest``::
 
-    python -m pytest
+    uv run pytest
 
 To also get coverage information, run it with the ``coverage`` command::
 
-    coverage run -m pytest
+    uv run coverage run -m pytest
 
-You can then use ``coverage html`` to get a nice HTML output of exactly what code has been tested
-and what has been missed.
+You can then use ``uv run coverage html`` to get a nice HTML output of exactly what code has been
+tested and what has been missed.
 
-To run the type tests, run ``pyright`` or ``mypy`` in the project root directory. You may need to
-install the ``excetiongroup`` compatibility package, even on newer versions of Python.
+To build the docs, run::
+
+    uv run sphinx-build -b html docs/source docs/build/html
+
+To run the type tests, run ``uv run pyright`` or ``uv run mypy`` in the project root directory.
 
 
 License
 -------
 
-Copyright Arthur Tacca 2022 - 2025
+Copyright Arthur Tacca 2022 - 2026
 
 Distributed under the Boost Software License, Version 1.0.
 See accompanying file LICENSE or the copy at https://www.boost.org/LICENSE_1_0.txt

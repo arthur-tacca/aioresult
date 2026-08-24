@@ -19,3 +19,9 @@ docs/build/
 
 # Notes to self
 _TODO.txt
+
+# uv virtual environment
+.venv/
+
+# uv lockfile not needed for a library
+uv.lock

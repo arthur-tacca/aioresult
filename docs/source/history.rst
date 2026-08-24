@@ -3,6 +3,11 @@ Release history
 
 .. currentmodule:: aioresult
 
+aioresult 1.3 (2026-08-24)
+--------------------------
+
+- Fix type hints, courtesy of vladimirven001
+
 aioresult 1.2 (2025-02-28)
 --------------------------
 

@@ -1,18 +1,13 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.dynamic]
-version = {attr = "aioresult._version.__version__"}
-
-[tool.setuptools]
-include-package-data = true
+requires = ["flit_core>=3.11,<4"]
+build-backend = "flit_core.buildapi"
 
 [project]
 name = "aioresult"
 dynamic = ["version"]
 description = "Capture the result of a Trio or anyio task"
-license = {file = "LICENSE"}
+license = "BSL-1.0"
+license-files = ["LICENSE"]
 authors = [{name = "Arthur Tacca"}]
 readme = "README.rst"
 requires-python = ">=3.9"
@@ -27,14 +22,8 @@ classifiers = [
     "Framework :: AnyIO",
     "Framework :: Trio",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Boost Software License 1.0 (BSL-1.0)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: System :: Networking",
@@ -42,11 +31,17 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/arthur-tacca/aioresult"
-Documentation = "https://aioresult.readthedocs.io/en/v1.2/overview.html"
+Documentation = "https://aioresult.readthedocs.io/en/v1.3/overview.html"
 
 [project.optional-dependencies]
 docs = ["sphinx>=6.1", "sphinxcontrib-trio", "sphinx_rtd_theme", "trio", "anyio"]
-tests = ["pytest", "coverage", "trio", "anyio", "exceptiongroup; python_version < '3.11'"]
+tests = ["pytest", "coverage[toml]", "trio", "anyio", "exceptiongroup; python_version < '3.11'"]
+
+[dependency-groups]
+dev = ["aioresult[tests, docs]", "mypy", "pyright", "exceptiongroup"]
+
+[tool.coverage.run]
+source = ["aioresult"]
 
 [tool.mypy]
 python_version = "3.9"
